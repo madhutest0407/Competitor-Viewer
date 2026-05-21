@@ -9,10 +9,40 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SourcesRouteImport } from './routes/sources'
+import { Route as MeRouteImport } from './routes/me'
+import { Route as GapsRouteImport } from './routes/gaps'
+import { Route as CompareRouteImport } from './routes/compare'
+import { Route as BoardRouteImport } from './routes/board'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiPublicSyncMicrosoftRouteImport } from './routes/api/public/sync.microsoft'
 import { Route as ApiPublicSyncGoogleRouteImport } from './routes/api/public/sync.google'
 
+const SourcesRoute = SourcesRouteImport.update({
+  id: '/sources',
+  path: '/sources',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MeRoute = MeRouteImport.update({
+  id: '/me',
+  path: '/me',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GapsRoute = GapsRouteImport.update({
+  id: '/gaps',
+  path: '/gaps',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompareRoute = CompareRouteImport.update({
+  id: '/compare',
+  path: '/compare',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BoardRoute = BoardRouteImport.update({
+  id: '/board',
+  path: '/board',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -31,40 +61,116 @@ const ApiPublicSyncGoogleRoute = ApiPublicSyncGoogleRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/board': typeof BoardRoute
+  '/compare': typeof CompareRoute
+  '/gaps': typeof GapsRoute
+  '/me': typeof MeRoute
+  '/sources': typeof SourcesRoute
   '/api/public/sync/google': typeof ApiPublicSyncGoogleRoute
   '/api/public/sync/microsoft': typeof ApiPublicSyncMicrosoftRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/board': typeof BoardRoute
+  '/compare': typeof CompareRoute
+  '/gaps': typeof GapsRoute
+  '/me': typeof MeRoute
+  '/sources': typeof SourcesRoute
   '/api/public/sync/google': typeof ApiPublicSyncGoogleRoute
   '/api/public/sync/microsoft': typeof ApiPublicSyncMicrosoftRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/board': typeof BoardRoute
+  '/compare': typeof CompareRoute
+  '/gaps': typeof GapsRoute
+  '/me': typeof MeRoute
+  '/sources': typeof SourcesRoute
   '/api/public/sync/google': typeof ApiPublicSyncGoogleRoute
   '/api/public/sync/microsoft': typeof ApiPublicSyncMicrosoftRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/public/sync/google' | '/api/public/sync/microsoft'
+  fullPaths:
+    | '/'
+    | '/board'
+    | '/compare'
+    | '/gaps'
+    | '/me'
+    | '/sources'
+    | '/api/public/sync/google'
+    | '/api/public/sync/microsoft'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/public/sync/google' | '/api/public/sync/microsoft'
+  to:
+    | '/'
+    | '/board'
+    | '/compare'
+    | '/gaps'
+    | '/me'
+    | '/sources'
+    | '/api/public/sync/google'
+    | '/api/public/sync/microsoft'
   id:
     | '__root__'
     | '/'
+    | '/board'
+    | '/compare'
+    | '/gaps'
+    | '/me'
+    | '/sources'
     | '/api/public/sync/google'
     | '/api/public/sync/microsoft'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BoardRoute: typeof BoardRoute
+  CompareRoute: typeof CompareRoute
+  GapsRoute: typeof GapsRoute
+  MeRoute: typeof MeRoute
+  SourcesRoute: typeof SourcesRoute
   ApiPublicSyncGoogleRoute: typeof ApiPublicSyncGoogleRoute
   ApiPublicSyncMicrosoftRoute: typeof ApiPublicSyncMicrosoftRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/sources': {
+      id: '/sources'
+      path: '/sources'
+      fullPath: '/sources'
+      preLoaderRoute: typeof SourcesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/me': {
+      id: '/me'
+      path: '/me'
+      fullPath: '/me'
+      preLoaderRoute: typeof MeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gaps': {
+      id: '/gaps'
+      path: '/gaps'
+      fullPath: '/gaps'
+      preLoaderRoute: typeof GapsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/compare': {
+      id: '/compare'
+      path: '/compare'
+      fullPath: '/compare'
+      preLoaderRoute: typeof CompareRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/board': {
+      id: '/board'
+      path: '/board'
+      fullPath: '/board'
+      preLoaderRoute: typeof BoardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -91,9 +197,24 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BoardRoute: BoardRoute,
+  CompareRoute: CompareRoute,
+  GapsRoute: GapsRoute,
+  MeRoute: MeRoute,
+  SourcesRoute: SourcesRoute,
   ApiPublicSyncGoogleRoute: ApiPublicSyncGoogleRoute,
   ApiPublicSyncMicrosoftRoute: ApiPublicSyncMicrosoftRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
