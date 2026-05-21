@@ -218,7 +218,7 @@ export async function syncMicrosoft(triggeredBy: "cron" | "manual"): Promise<{
           source_url: `https://www.microsoft.com/microsoft-365/roadmap?id=${item.id}`,
           platforms: item.platforms ?? [],
           audience: item.cloudInstances ?? [],
-          raw: item as unknown as Record<string, unknown>,
+          raw: item as never,
         },
         { onConflict: "source,source_id" },
       );
@@ -320,7 +320,7 @@ export async function syncGoogle(triggeredBy: "cron" | "manual"): Promise<{
           source_url: sourceUrl,
           platforms: [],
           audience,
-          raw: entry as unknown as Record<string, unknown>,
+          raw: entry as never,
         },
         { onConflict: "source,source_id" },
       );
