@@ -1,0 +1,90 @@
+import { Link, Outlet, useLocation } from "@tanstack/react-router";
+import { useState } from "react";
+import {
+  Calendar,
+  LayoutDashboard,
+  Columns,
+  GitCompare,
+  Target,
+  User,
+  Activity,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/auth-context";
+import { AuthDialog } from "./AuthDialog";
+import { Toaster } from "@/components/ui/sonner";
+
+const NAV = [
+  { to: "/", label: "Timeline", icon: LayoutDashboard },
+  { to: "/board", label: "Board", icon: Columns },
+  { to: "/compare", label: "Compare", icon: GitCompare },
+  { to: "/gaps", label: "Gaps", icon: Target },
+  { to: "/me", label: "My product", icon: User, auth: true },
+  { to: "/sources", label: "Sources", icon: Activity },
+] as const;
+
+export function AppShell() {
+  const { user, signOut } = useAuth();
+  const [authOpen, setAuthOpen] = useState(false);
+  const loc = useLocation();
+
+  return (
+    <div className="flex min-h-screen bg-background text-foreground">
+      <aside className="hidden w-56 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
+        <div className="flex items-center gap-2 px-4 py-4">
+          <Calendar className="h-5 w-5 text-primary" />
+          <span className="text-sm font-semibold tracking-tight">Cal Radar</span>
+        </div>
+        <nav className="flex-1 space-y-0.5 px-2">
+          {NAV.map((n) => {
+            if ("auth" in n && n.auth && !user) return null;
+            const Icon = n.icon;
+            const active = loc.pathname === n.to;
+            return (
+              <Link
+                key={n.to}
+                to={n.to}
+                className={`flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] transition-colors ${
+                  active
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {n.label}
+              </Link>
+            );
+          })}
+        </nav>
+        <div className="border-t border-sidebar-border p-3 text-xs">
+          {user ? (
+            <div className="space-y-1.5">
+              <div className="truncate text-sidebar-foreground/70">{user.email}</div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 w-full justify-start px-2 text-xs"
+                onClick={signOut}
+              >
+                Sign out
+              </Button>
+            </div>
+          ) : (
+            <Button
+              size="sm"
+              className="h-7 w-full text-xs"
+              onClick={() => setAuthOpen(true)}
+            >
+              Sign in
+            </Button>
+          )}
+        </div>
+      </aside>
+      <main className="flex-1 overflow-x-hidden">
+        <Outlet />
+      </main>
+      <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />
+      <Toaster theme="dark" position="bottom-right" />
+    </div>
+  );
+}
