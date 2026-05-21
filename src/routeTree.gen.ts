@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiPublicSyncMicrosoftRouteImport } from './routes/api/public/sync.microsoft'
+import { Route as ApiPublicSyncGoogleRouteImport } from './routes/api/public/sync.google'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,30 +23,43 @@ const ApiPublicSyncMicrosoftRoute = ApiPublicSyncMicrosoftRouteImport.update({
   path: '/api/public/sync/microsoft',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicSyncGoogleRoute = ApiPublicSyncGoogleRouteImport.update({
+  id: '/api/public/sync/google',
+  path: '/api/public/sync/google',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/public/sync/google': typeof ApiPublicSyncGoogleRoute
   '/api/public/sync/microsoft': typeof ApiPublicSyncMicrosoftRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/public/sync/google': typeof ApiPublicSyncGoogleRoute
   '/api/public/sync/microsoft': typeof ApiPublicSyncMicrosoftRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/public/sync/google': typeof ApiPublicSyncGoogleRoute
   '/api/public/sync/microsoft': typeof ApiPublicSyncMicrosoftRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/public/sync/microsoft'
+  fullPaths: '/' | '/api/public/sync/google' | '/api/public/sync/microsoft'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/public/sync/microsoft'
-  id: '__root__' | '/' | '/api/public/sync/microsoft'
+  to: '/' | '/api/public/sync/google' | '/api/public/sync/microsoft'
+  id:
+    | '__root__'
+    | '/'
+    | '/api/public/sync/google'
+    | '/api/public/sync/microsoft'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiPublicSyncGoogleRoute: typeof ApiPublicSyncGoogleRoute
   ApiPublicSyncMicrosoftRoute: typeof ApiPublicSyncMicrosoftRoute
 }
 
@@ -65,11 +79,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicSyncMicrosoftRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/sync/google': {
+      id: '/api/public/sync/google'
+      path: '/api/public/sync/google'
+      fullPath: '/api/public/sync/google'
+      preLoaderRoute: typeof ApiPublicSyncGoogleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiPublicSyncGoogleRoute: ApiPublicSyncGoogleRoute,
   ApiPublicSyncMicrosoftRoute: ApiPublicSyncMicrosoftRoute,
 }
 export const routeTree = rootRouteImport
