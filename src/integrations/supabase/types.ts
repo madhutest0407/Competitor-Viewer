@@ -14,7 +14,168 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      my_product_items: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          notes: string | null
+          status: string
+          target_date: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          status?: string
+          target_date?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          status?: string
+          target_date?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notes: {
+        Row: {
+          body: string
+          category: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          body?: string
+          category: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          category?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
+      releases: {
+        Row: {
+          announced_date: string | null
+          audience: string[] | null
+          category: string | null
+          description: string | null
+          id: string
+          platforms: string[] | null
+          raw: Json | null
+          release_date: string | null
+          source: string
+          source_id: string
+          source_url: string | null
+          status: string | null
+          summary: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          announced_date?: string | null
+          audience?: string[] | null
+          category?: string | null
+          description?: string | null
+          id?: string
+          platforms?: string[] | null
+          raw?: Json | null
+          release_date?: string | null
+          source: string
+          source_id: string
+          source_url?: string | null
+          status?: string | null
+          summary?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          announced_date?: string | null
+          audience?: string[] | null
+          category?: string | null
+          description?: string | null
+          id?: string
+          platforms?: string[] | null
+          raw?: Json | null
+          release_date?: string | null
+          source?: string
+          source_id?: string
+          source_url?: string | null
+          status?: string | null
+          summary?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sync_runs: {
+        Row: {
+          error: string | null
+          finished_at: string | null
+          id: string
+          items_upserted: number | null
+          source: string
+          started_at: string
+          triggered_by: string
+        }
+        Insert: {
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          items_upserted?: number | null
+          source: string
+          started_at?: string
+          triggered_by?: string
+        }
+        Update: {
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          items_upserted?: number | null
+          source?: string
+          started_at?: string
+          triggered_by?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
