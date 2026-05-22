@@ -8,11 +8,15 @@ import {
   Target,
   User,
   Activity,
+  Sun,
+  Moon,
+  Monitor,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
 import { AuthDialog } from "./AuthDialog";
 import { Toaster } from "@/components/ui/sonner";
+import { useTheme, type Theme } from "@/lib/theme";
 
 const NAV = [
   { to: "/", label: "Timeline", icon: LayoutDashboard },
@@ -27,6 +31,7 @@ export function AppShell() {
   const { user, signOut } = useAuth();
   const [authOpen, setAuthOpen] = useState(false);
   const loc = useLocation();
+  const { theme, resolved, setTheme } = useTheme();
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
@@ -56,7 +61,29 @@ export function AppShell() {
             );
           })}
         </nav>
-        <div className="border-t border-sidebar-border p-3 text-xs">
+        <div className="space-y-2 border-t border-sidebar-border p-3 text-xs">
+          <div className="flex items-center gap-1 rounded-md border border-sidebar-border p-0.5">
+            {(
+              [
+                { v: "light", Icon: Sun, label: "Light" },
+                { v: "dark", Icon: Moon, label: "Dark" },
+                { v: "system", Icon: Monitor, label: "System" },
+              ] as { v: Theme; Icon: typeof Sun; label: string }[]
+            ).map(({ v, Icon, label }) => (
+              <button
+                key={v}
+                onClick={() => setTheme(v)}
+                title={label}
+                className={`flex flex-1 items-center justify-center rounded py-1 transition-colors ${
+                  theme === v
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    : "text-sidebar-foreground/60 hover:text-sidebar-accent-foreground"
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+              </button>
+            ))}
+          </div>
           {user ? (
             <div className="space-y-1.5">
               <div className="truncate text-sidebar-foreground/70">{user.email}</div>
@@ -84,7 +111,7 @@ export function AppShell() {
         <Outlet />
       </main>
       <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />
-      <Toaster theme="dark" position="bottom-right" />
+      <Toaster theme={resolved} position="bottom-right" />
     </div>
   );
 }
