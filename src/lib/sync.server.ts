@@ -1,24 +1,19 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { CATEGORIES, normalizeStatus } from "./categories";
 
-const MS_KEYWORDS = [
-  "calendar",
-  "outlook",
-  "scheduling",
-  "bookings",
-  "places",
-  "rooms",
-  "meeting",
-  "rsvp",
-];
+// Restrict Microsoft items to Calendar + Mail products only.
+const MS_PRODUCT_ALLOW = ["outlook", "exchange", "bookings", "places"];
 
-function isCalendarRelated(item: {
+function isCalendarOrMail(item: {
   title?: string;
   description?: string;
   products?: string[];
 }) {
-  const t = `${item.title ?? ""} ${item.description ?? ""} ${(item.products ?? []).join(" ")}`.toLowerCase();
-  return MS_KEYWORDS.some((k) => t.includes(k));
+  const products = (item.products ?? []).map((p) => p.toLowerCase());
+  if (products.some((p) => MS_PRODUCT_ALLOW.some((k) => p.includes(k)))) return true;
+  // Fallback: title mentions Outlook/Exchange/Bookings/Places/Calendar/Mail explicitly
+  const t = `${item.title ?? ""}`.toLowerCase();
+  return /\b(outlook|exchange|bookings|places|calendar|mail)\b/.test(t);
 }
 
 function parseMonthYear(s: string | null | undefined): string | null {
@@ -183,7 +178,7 @@ export async function syncMicrosoft(triggeredBy: "cron" | "manual"): Promise<{
       }>;
     };
 
-    const filtered = body.value.filter(isCalendarRelated);
+    const filtered = body.value.filter(isCalendarOrMail);
     let upserted = 0;
     for (const item of filtered) {
       const sourceId = String(item.id);
@@ -256,24 +251,31 @@ export async function syncGoogle(triggeredBy: "cron" | "manual"): Promise<{
     .single();
 
   try {
-    const url =
-      "https://workspaceupdates.googleblog.com/feeds/posts/default/-/Calendar?alt=json&max-results=50";
-    const res = await fetch(url, { headers: { Accept: "application/json" } });
-    if (!res.ok) throw new Error(`Google feed ${res.status}`);
-    const body = (await res.json()) as {
-      feed?: {
-        entry?: Array<{
-          id: { $t: string };
-          title: { $t: string };
-          published: { $t: string };
-          updated: { $t: string };
-          content: { $t: string };
-          link: Array<{ rel: string; href: string }>;
-          category?: Array<{ term: string }>;
-        }>;
-      };
+    type GEntry = {
+      id: { $t: string };
+      title: { $t: string };
+      published: { $t: string };
+      updated: { $t: string };
+      content: { $t: string };
+      link: Array<{ rel: string; href: string }>;
+      category?: Array<{ term: string }>;
     };
-    const entries = body.feed?.entry ?? [];
+    // Google Workspace Updates uses labels "Google Calendar" and "Gmail".
+    const labels = ["Google Calendar", "Gmail"];
+    const entries: GEntry[] = [];
+    const seen = new Set<string>();
+    for (const label of labels) {
+      const url = `https://workspaceupdates.googleblog.com/feeds/posts/default/-/${encodeURIComponent(label)}?alt=json&max-results=50`;
+      const res = await fetch(url, { headers: { Accept: "application/json" } });
+      if (!res.ok) throw new Error(`Google feed (${label}) ${res.status}`);
+      const body = (await res.json()) as { feed?: { entry?: GEntry[] } };
+      for (const e of body.feed?.entry ?? []) {
+        const id = e.id.$t;
+        if (seen.has(id)) continue;
+        seen.add(id);
+        entries.push(e);
+      }
+    }
     let upserted = 0;
 
     for (const entry of entries) {
