@@ -179,45 +179,69 @@ export async function syncMicrosoft(triggeredBy: "cron" | "manual"): Promise<{
     };
 
     const filtered = body.value.filter(isCalendarOrMail);
-    let upserted = 0;
-    for (const item of filtered) {
+    // Load existing rows once so we know which need AI categorization.
+    const { data: existingRows } = await supabaseAdmin
+      .from("releases")
+      .select("source_id, category")
+      .eq("source", "microsoft");
+    const existingMap = new Map(
+      (existingRows ?? []).map((r) => [r.source_id, r.category]),
+    );
+
+    // Phase 1: fast upsert of all items without blocking on AI.
+    const rows = filtered.map((item) => {
       const sourceId = String(item.id);
-      const { data: existing } = await supabaseAdmin
-        .from("releases")
-        .select("id, category")
-        .eq("source", "microsoft")
-        .eq("source_id", sourceId)
-        .maybeSingle();
-
-      let category = existing?.category ?? null;
-      if (!category) {
-        category = await aiCategorizeMs(item.title, item.description ?? "");
-      }
-
+      const existingCat = existingMap.get(sourceId);
       const releaseDate =
         parseMonthYear(item.generalAvailabilityDate) ??
         parseMonthYear(item.previewAvailabilityDate);
       const announcedDate = item.created ? item.created.slice(0, 10) : null;
+      return {
+        source: "microsoft",
+        source_id: sourceId,
+        title: item.title,
+        description: item.description,
+        summary: item.description?.slice(0, 280) ?? null,
+        status: normalizeStatus(item.status),
+        category: existingCat ?? null,
+        release_date: releaseDate,
+        announced_date: announcedDate,
+        source_url: `https://www.microsoft.com/microsoft-365/roadmap?id=${item.id}`,
+        platforms: item.platforms ?? [],
+        audience: item.cloudInstances ?? [],
+        raw: item as never,
+      };
+    });
 
-      const { error } = await supabaseAdmin.from("releases").upsert(
-        {
-          source: "microsoft",
-          source_id: sourceId,
-          title: item.title,
-          description: item.description,
-          summary: item.description?.slice(0, 280) ?? null,
-          status: normalizeStatus(item.status),
-          category,
-          release_date: releaseDate,
-          announced_date: announcedDate,
-          source_url: `https://www.microsoft.com/microsoft-365/roadmap?id=${item.id}`,
-          platforms: item.platforms ?? [],
-          audience: item.cloudInstances ?? [],
-          raw: item as never,
-        },
-        { onConflict: "source,source_id" },
+    let upserted = 0;
+    const CHUNK = 100;
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      const chunk = rows.slice(i, i + CHUNK);
+      const { error } = await supabaseAdmin
+        .from("releases")
+        .upsert(chunk, { onConflict: "source,source_id" });
+      if (!error) upserted += chunk.length;
+    }
+
+    // Phase 2: categorize a bounded set of uncategorized items in parallel.
+    const needsAi = filtered.filter(
+      (it) => !existingMap.get(String(it.id)),
+    ).slice(0, 40);
+    const AI_BATCH = 5;
+    for (let i = 0; i < needsAi.length; i += AI_BATCH) {
+      const batch = needsAi.slice(i, i + AI_BATCH);
+      const cats = await Promise.all(
+        batch.map((it) => aiCategorizeMs(it.title, it.description ?? "")),
       );
-      if (!error) upserted++;
+      await Promise.all(
+        batch.map((it, idx) =>
+          supabaseAdmin
+            .from("releases")
+            .update({ category: cats[idx] })
+            .eq("source", "microsoft")
+            .eq("source_id", String(it.id)),
+        ),
+      );
     }
 
     await supabaseAdmin
