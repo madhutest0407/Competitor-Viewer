@@ -61,7 +61,7 @@ export function AuthDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Sign in to Cal Radar</DialogTitle>
+          <DialogTitle>Sign in to CalRadar</DialogTitle>
         </DialogHeader>
         <Button variant="outline" onClick={google} disabled={loading}>
           Continue with Google
