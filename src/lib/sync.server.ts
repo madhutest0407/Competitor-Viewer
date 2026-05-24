@@ -179,45 +179,69 @@ export async function syncMicrosoft(triggeredBy: "cron" | "manual"): Promise<{
     };
 
     const filtered = body.value.filter(isCalendarOrMail);
-    let upserted = 0;
-    for (const item of filtered) {
+    // Load existing rows once so we know which need AI categorization.
+    const { data: existingRows } = await supabaseAdmin
+      .from("releases")
+      .select("source_id, category")
+      .eq("source", "microsoft");
+    const existingMap = new Map(
+      (existingRows ?? []).map((r) => [r.source_id, r.category]),
+    );
+
+    // Phase 1: fast upsert of all items without blocking on AI.
+    const rows = filtered.map((item) => {
       const sourceId = String(item.id);
-      const { data: existing } = await supabaseAdmin
-        .from("releases")
-        .select("id, category")
-        .eq("source", "microsoft")
-        .eq("source_id", sourceId)
-        .maybeSingle();
-
-      let category = existing?.category ?? null;
-      if (!category) {
-        category = await aiCategorizeMs(item.title, item.description ?? "");
-      }
-
+      const existingCat = existingMap.get(sourceId);
       const releaseDate =
         parseMonthYear(item.generalAvailabilityDate) ??
         parseMonthYear(item.previewAvailabilityDate);
       const announcedDate = item.created ? item.created.slice(0, 10) : null;
+      return {
+        source: "microsoft",
+        source_id: sourceId,
+        title: item.title,
+        description: item.description,
+        summary: item.description?.slice(0, 280) ?? null,
+        status: normalizeStatus(item.status),
+        category: existingCat ?? null,
+        release_date: releaseDate,
+        announced_date: announcedDate,
+        source_url: `https://www.microsoft.com/microsoft-365/roadmap?id=${item.id}`,
+        platforms: item.platforms ?? [],
+        audience: item.cloudInstances ?? [],
+        raw: item as never,
+      };
+    });
 
-      const { error } = await supabaseAdmin.from("releases").upsert(
-        {
-          source: "microsoft",
-          source_id: sourceId,
-          title: item.title,
-          description: item.description,
-          summary: item.description?.slice(0, 280) ?? null,
-          status: normalizeStatus(item.status),
-          category,
-          release_date: releaseDate,
-          announced_date: announcedDate,
-          source_url: `https://www.microsoft.com/microsoft-365/roadmap?id=${item.id}`,
-          platforms: item.platforms ?? [],
-          audience: item.cloudInstances ?? [],
-          raw: item as never,
-        },
-        { onConflict: "source,source_id" },
+    let upserted = 0;
+    const CHUNK = 100;
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      const chunk = rows.slice(i, i + CHUNK);
+      const { error } = await supabaseAdmin
+        .from("releases")
+        .upsert(chunk, { onConflict: "source,source_id" });
+      if (!error) upserted += chunk.length;
+    }
+
+    // Phase 2: categorize a bounded set of uncategorized items in parallel.
+    const needsAi = filtered.filter(
+      (it) => !existingMap.get(String(it.id)),
+    ).slice(0, 40);
+    const AI_BATCH = 5;
+    for (let i = 0; i < needsAi.length; i += AI_BATCH) {
+      const batch = needsAi.slice(i, i + AI_BATCH);
+      const cats = await Promise.all(
+        batch.map((it) => aiCategorizeMs(it.title, it.description ?? "")),
       );
-      if (!error) upserted++;
+      await Promise.all(
+        batch.map((it, idx) =>
+          supabaseAdmin
+            .from("releases")
+            .update({ category: cats[idx] })
+            .eq("source", "microsoft")
+            .eq("source_id", String(it.id)),
+        ),
+      );
     }
 
     await supabaseAdmin
@@ -261,72 +285,107 @@ export async function syncGoogle(triggeredBy: "cron" | "manual"): Promise<{
       category?: Array<{ term: string }>;
     };
     // Google Workspace Updates uses labels "Google Calendar" and "Gmail".
+    // Paginate via start-index (feed caps max-results at 150).
     const labels = ["Google Calendar", "Gmail"];
     const entries: GEntry[] = [];
     const seen = new Set<string>();
+    const PAGE = 150;
+    const MAX_PAGES = 4; // up to 600 posts per label
     for (const label of labels) {
-      const url = `https://workspaceupdates.googleblog.com/feeds/posts/default/-/${encodeURIComponent(label)}?alt=json&max-results=50`;
-      const res = await fetch(url, { headers: { Accept: "application/json" } });
-      if (!res.ok) throw new Error(`Google feed (${label}) ${res.status}`);
-      const body = (await res.json()) as { feed?: { entry?: GEntry[] } };
-      for (const e of body.feed?.entry ?? []) {
-        const id = e.id.$t;
-        if (seen.has(id)) continue;
-        seen.add(id);
-        entries.push(e);
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const start = page * PAGE + 1;
+        const url = `https://workspaceupdates.googleblog.com/feeds/posts/default/-/${encodeURIComponent(label)}?alt=json&max-results=${PAGE}&start-index=${start}`;
+        const res = await fetch(url, { headers: { Accept: "application/json" } });
+        if (!res.ok) throw new Error(`Google feed (${label}) ${res.status}`);
+        const body = (await res.json()) as { feed?: { entry?: GEntry[] } };
+        const pageEntries = body.feed?.entry ?? [];
+        let added = 0;
+        for (const e of pageEntries) {
+          const id = e.id.$t;
+          if (seen.has(id)) continue;
+          seen.add(id);
+          entries.push(e);
+          added++;
+        }
+        if (pageEntries.length < PAGE) break; // last page
+        if (added === 0) break; // nothing new
       }
     }
-    let upserted = 0;
 
-    for (const entry of entries) {
+    // Load existing rows once.
+    const { data: existingRows } = await supabaseAdmin
+      .from("releases")
+      .select("source_id, category, summary, status")
+      .eq("source", "google");
+    const existingMap = new Map(
+      (existingRows ?? []).map((r) => [r.source_id, r]),
+    );
+
+    // Phase 1: fast upsert with fallback values for new items.
+    const rows = entries.map((entry) => {
       const sourceId = entry.id.$t;
+      const existing = existingMap.get(sourceId);
       const altLink = entry.link.find((l) => l.rel === "alternate");
       const sourceUrl = altLink?.href ?? "";
       const text = stripHtml(entry.content.$t);
       const title = entry.title.$t;
-
-      const { data: existing } = await supabaseAdmin
-        .from("releases")
-        .select("id, summary, status, category")
-        .eq("source", "google")
-        .eq("source_id", sourceId)
-        .maybeSingle();
-
-      let summary = existing?.summary ?? "";
-      let status = existing?.status ?? "Rolling out";
-      let category = existing?.category ?? "Other";
-      if (!existing) {
-        const extracted = await aiExtract(title, text);
-        summary = extracted.summary;
-        status = extracted.status;
-        category = extracted.category;
-      }
-
       const audience = (entry.category ?? [])
         .map((c) => c.term)
         .filter((t) =>
           ["Rapid Release", "Scheduled Release", "End-user", "Admin console", "Beta"].includes(t),
         );
+      return {
+        source: "google",
+        source_id: sourceId,
+        title,
+        description: text.slice(0, 4000),
+        summary: existing?.summary ?? text.slice(0, 240),
+        status: existing?.status ?? "Rolling out",
+        category: existing?.category ?? null,
+        release_date: entry.published.$t.slice(0, 10),
+        announced_date: entry.published.$t.slice(0, 10),
+        source_url: sourceUrl,
+        platforms: [],
+        audience,
+        raw: entry as never,
+      };
+    });
 
-      const { error } = await supabaseAdmin.from("releases").upsert(
-        {
-          source: "google",
-          source_id: sourceId,
-          title,
-          description: text.slice(0, 4000),
-          summary,
-          status,
-          category,
-          release_date: entry.published.$t.slice(0, 10),
-          announced_date: entry.published.$t.slice(0, 10),
-          source_url: sourceUrl,
-          platforms: [],
-          audience,
-          raw: entry as never,
-        },
-        { onConflict: "source,source_id" },
+    let upserted = 0;
+    const CHUNK = 100;
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      const chunk = rows.slice(i, i + CHUNK);
+      const { error } = await supabaseAdmin
+        .from("releases")
+        .upsert(chunk, { onConflict: "source,source_id" });
+      if (!error) upserted += chunk.length;
+    }
+
+    // Phase 2: AI-extract summary/status/category for a bounded set of new items.
+    const needsAi = entries
+      .filter((e) => !existingMap.get(e.id.$t)?.category)
+      .slice(0, 30);
+    const AI_BATCH = 5;
+    for (let i = 0; i < needsAi.length; i += AI_BATCH) {
+      const batch = needsAi.slice(i, i + AI_BATCH);
+      const results = await Promise.all(
+        batch.map((entry) =>
+          aiExtract(entry.title.$t, stripHtml(entry.content.$t)),
+        ),
       );
-      if (!error) upserted++;
+      await Promise.all(
+        batch.map((entry, idx) =>
+          supabaseAdmin
+            .from("releases")
+            .update({
+              summary: results[idx].summary,
+              status: results[idx].status,
+              category: results[idx].category,
+            })
+            .eq("source", "google")
+            .eq("source_id", entry.id.$t),
+        ),
+      );
     }
 
     await supabaseAdmin
