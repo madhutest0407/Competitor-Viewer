@@ -3,7 +3,6 @@ import { useState } from "react";
 import {
   Calendar,
   LayoutDashboard,
-  Columns,
   GitCompare,
   Target,
   User,
@@ -20,7 +19,6 @@ import { useTheme, type Theme } from "@/lib/theme";
 
 const NAV = [
   { to: "/", label: "Timeline", icon: LayoutDashboard },
-  { to: "/board", label: "Board", icon: Columns },
   { to: "/compare", label: "Compare", icon: GitCompare },
   { to: "/gaps", label: "Gaps", icon: Target },
   { to: "/me", label: "My product", icon: User, auth: true },
