@@ -4,7 +4,7 @@ import type { FilterState } from "@/components/Filters";
 
 export type Release = {
   id: string;
-  source: "google" | "microsoft";
+  source: string;
   source_id: string;
   title: string;
   description: string | null;
@@ -39,8 +39,6 @@ export function useReleases() {
 export function applyFilters(rows: Release[], f: FilterState): Release[] {
   const q = f.search.trim().toLowerCase();
   return rows.filter((r) => {
-    if (r.source === "google" && !f.vendor.google) return false;
-    if (r.source === "microsoft" && !f.vendor.microsoft) return false;
     if (r.status && !f.statuses.has(r.status)) return false;
     if (r.category && !f.categories.has(r.category)) return false;
     if (q && !(r.title.toLowerCase().includes(q) || (r.summary ?? "").toLowerCase().includes(q)))
