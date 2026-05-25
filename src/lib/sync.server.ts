@@ -251,6 +251,12 @@ export async function syncProductRss(
   if (pErr || !product) return { ok: false, upserted: 0, error: pErr?.message ?? "Product not found" };
   if (!product.feed_url) return { ok: false, upserted: 0, error: "No feed_url for product" };
 
+  try {
+    new URL(product.feed_url);
+  } catch {
+    return { ok: false, upserted: 0, error: `Invalid feed URL: "${product.feed_url}". Set a full URL (starting with https://) for this product.` };
+  }
+
   const { data: run } = await supabaseAdmin
     .from("sync_runs")
     .insert({ source: product.id, triggered_by: triggeredBy })
@@ -261,7 +267,7 @@ export async function syncProductRss(
     const res = await fetch(product.feed_url, {
       headers: {
         Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
-        "User-Agent": "CalRadar/1.0 (+https://calradar.app)",
+        "User-Agent": "PM Radar/1.0 (+https://calradar.app)",
       },
     });
     if (!res.ok) throw new Error(`Feed ${product.feed_url} ${res.status}`);

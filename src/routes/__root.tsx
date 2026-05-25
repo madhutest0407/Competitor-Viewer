@@ -74,10 +74,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "CalRadar — Google & Microsoft calendar releases" },
+      { title: "PM Radar — Google & Microsoft calendar releases" },
       { name: "description", content: "Timeline, board and gap analysis of Google Workspace and Microsoft 365 calendar releases for product managers." },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "CalRadar" },
+      { property: "og:title", content: "PM Radar" },
       { property: "og:description", content: "Track Google & Microsoft calendar releases on one timeline." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

@@ -36,7 +36,7 @@ export function AppShell() {
       <aside className="hidden w-56 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
         <div className="flex items-center gap-2 px-4 py-4">
           <Calendar className="h-5 w-5 text-primary" />
-          <span className="text-sm tracking-tight font-mono font-bold">CalRadar</span>
+          <span className="text-sm tracking-tight font-mono font-bold">PM Radar</span>
         </div>
         <nav className="flex-1 space-y-0.5 px-2">
           {NAV.map((n) => {
