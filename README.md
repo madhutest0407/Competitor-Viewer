@@ -13,8 +13,6 @@ PM Radar is a centralized dashboard that aggregates competitor product updates t
 - **Product Trend Tracking** - Quarterly timeline view with up to 4 products side-by-side
 - **Strategic Insight Generation** - AI-powered market briefing and gap analysis recommendations
 - **Gap Analysis** - Identify competitive gaps and feature priorities at a glance
-- **User Authentication** - Secure access with Google/Email login
-- **Private Roadmaps** - Track your own product roadmap against competitors
 
 ## Why I Built This
 Having worked on collaboration and productivity products, I wanted a faster way for PMs to monitor evolving market trends and product directions without manually tracking dozens of update channels. PM Radar solves this with automation and AI.
