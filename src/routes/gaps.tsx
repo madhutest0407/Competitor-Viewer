@@ -9,6 +9,8 @@ import { listNotes, saveNote } from "@/lib/user.functions";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { ActiveProductsBar } from "@/components/ActiveProductsBar";
+import { useActiveProductIds } from "@/lib/products";
 
 export const Route = createFileRoute("/gaps")({
   component: GapsPage,
@@ -17,24 +19,33 @@ export const Route = createFileRoute("/gaps")({
 function GapsPage() {
   const { data } = useReleases();
   const { user } = useAuth();
+  const { activeIds, products } = useActiveProductIds();
+  const activeProducts = useMemo(
+    () => products.filter((p) => activeIds.has(p.id)),
+    [products, activeIds],
+  );
 
   const summary = useMemo(() => {
-    const out = CATEGORIES.map((c) => {
+    return CATEGORIES.map((c) => {
       const items = (data ?? []).filter((r) => r.category === c);
-      const g = items.filter((r) => r.source === "google").length;
-      const m = items.filter((r) => r.source === "microsoft").length;
+      const counts: Record<string, number> = {};
+      for (const p of activeProducts) {
+        counts[p.id] = items.filter((r) => r.source === p.id).length;
+      }
+      const withItems = activeProducts.filter((p) => counts[p.id] > 0);
       const verdict =
-        g === 0 && m > 0
-          ? "Microsoft only"
-          : m === 0 && g > 0
-            ? "Google only"
-            : g === 0 && m === 0
-              ? "Neither"
-              : "Both";
-      return { c, g, m, verdict };
+        activeProducts.length === 0
+          ? "—"
+          : withItems.length === 0
+            ? "None"
+            : withItems.length === activeProducts.length
+              ? "All"
+              : withItems.length === 1
+                ? `${withItems[0].name} only`
+                : `${withItems.length}/${activeProducts.length}`;
+      return { c, counts, verdict };
     });
-    return out;
-  }, [data]);
+  }, [data, activeProducts]);
 
   const fetchNotes = useServerFn(listNotes);
   const notesQ = useQuery({
@@ -53,16 +64,24 @@ function GapsPage() {
       <header className="border-b border-border px-6 py-4">
         <h1 className="text-lg font-semibold tracking-tight">Gap analysis</h1>
         <p className="text-xs text-muted-foreground">
-          Where Google and Microsoft are investing — and your private notes per category.
+          Where active products are investing — and your private notes per category.
         </p>
       </header>
+      <ActiveProductsBar />
       <div className="p-4">
         <table className="w-full border-collapse text-left text-xs">
           <thead>
             <tr className="border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground">
               <th className="px-3 py-2">Category</th>
-              <th className="px-3 py-2">Google</th>
-              <th className="px-3 py-2">Microsoft</th>
+              {activeProducts.map((p) => (
+                <th key={p.id} className="px-3 py-2">
+                  <span
+                    className="inline-block h-1.5 w-1.5 rounded-full align-middle"
+                    style={{ backgroundColor: p.color }}
+                  />{" "}
+                  {p.name}
+                </th>
+              ))}
               <th className="px-3 py-2">Verdict</th>
               <th className="px-3 py-2">Your take {user ? "" : "(sign in)"}</th>
             </tr>
@@ -71,8 +90,11 @@ function GapsPage() {
             {summary.map((s) => (
               <tr key={s.c} className="border-b border-border align-top">
                 <td className="px-3 py-3 text-[13px] font-medium">{s.c}</td>
-                <td className="px-3 py-3 tabular-nums">{s.g}</td>
-                <td className="px-3 py-3 tabular-nums">{s.m}</td>
+                {activeProducts.map((p) => (
+                  <td key={p.id} className="px-3 py-3 tabular-nums">
+                    {s.counts[p.id] ?? 0}
+                  </td>
+                ))}
                 <td className="px-3 py-3 text-muted-foreground">{s.verdict}</td>
                 <td className="px-3 py-3">
                   <NoteCell category={s.c} initial={noteMap[s.c] ?? ""} disabled={!user} />
