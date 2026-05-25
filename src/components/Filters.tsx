@@ -4,14 +4,12 @@ import { Search } from "lucide-react";
 import { CATEGORIES, STATUSES } from "@/lib/categories";
 
 export type FilterState = {
-  vendor: { google: boolean; microsoft: boolean };
   statuses: Set<string>;
   categories: Set<string>;
   search: string;
 };
 
 export const defaultFilters: FilterState = {
-  vendor: { google: true, microsoft: true },
   statuses: new Set(STATUSES),
   categories: new Set(CATEGORIES),
   search: "",
@@ -40,26 +38,6 @@ export function Filters({
           onChange={(e) => onChange({ ...value, search: e.target.value })}
           className="h-8 w-64 pl-7 text-xs"
         />
-      </div>
-      <div className="flex gap-1">
-        <Toggle
-          size="sm"
-          pressed={value.vendor.google}
-          onPressedChange={(p) => onChange({ ...value, vendor: { ...value.vendor, google: p } })}
-          className="h-7 px-2 text-xs data-[state=on]:bg-[var(--vendor-google)]/20"
-        >
-          Google
-        </Toggle>
-        <Toggle
-          size="sm"
-          pressed={value.vendor.microsoft}
-          onPressedChange={(p) =>
-            onChange({ ...value, vendor: { ...value.vendor, microsoft: p } })
-          }
-          className="h-7 px-2 text-xs data-[state=on]:bg-[var(--vendor-microsoft)]/20"
-        >
-          Microsoft
-        </Toggle>
       </div>
       <div className="flex flex-wrap gap-1">
         {STATUSES.map((s) => (
