@@ -1,0 +1,82 @@
+import { AlertTriangle, Star, TrendingUp } from "lucide-react";
+
+interface Insight {
+  text: string;
+  type: "threat" | "opportunity" | "trend";
+}
+
+interface AIInsightsSummaryProps {
+  variant: "timeline" | "gaps";
+  insights?: Insight[];
+  isLoading?: boolean;
+}
+
+export function AIInsightsSummary({
+  variant,
+  insights,
+  isLoading,
+}: AIInsightsSummaryProps) {
+  const title =
+    variant === "timeline"
+      ? "Market Briefing"
+      : "Strategic Recommendations";
+  const subtitle =
+    variant === "timeline"
+      ? "Key competitive themes this quarter"
+      : "Priorities based on competitor activity";
+
+  if (isLoading) {
+    return (
+      <div className="mb-4 rounded-md border border-border bg-card p-4">
+        <div className="mb-3 space-y-1">
+          <div className="h-4 w-32 animate-pulse rounded bg-muted" />
+          <div className="h-3 w-48 animate-pulse rounded bg-muted/50" />
+        </div>
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex gap-3">
+              <div className="mt-1 h-4 w-4 shrink-0 animate-pulse rounded bg-muted" />
+              <div className="h-4 flex-1 animate-pulse rounded bg-muted/70" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!insights || insights.length === 0) {
+    return null;
+  }
+
+  const getIcon = (type: string) => {
+    switch (type) {
+      case "threat":
+        return <AlertTriangle className="h-4 w-4 text-destructive" />;
+      case "opportunity":
+        return <Star className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />;
+      case "trend":
+        return <TrendingUp className="h-4 w-4 text-blue-600 dark:text-blue-500" />;
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="mb-4 rounded-md border border-border bg-card p-4">
+      <div className="mb-3 space-y-1">
+        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+        <p className="text-xs text-muted-foreground">{subtitle}</p>
+      </div>
+      <div className="space-y-3">
+        {insights.map((insight, idx) => (
+          <div key={idx} className="flex gap-3">
+            <div className="mt-0.5 shrink-0">
+              {getIcon(insight.type)}
+            </div>
+            <p className="text-sm text-foreground/90">{insight.text}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

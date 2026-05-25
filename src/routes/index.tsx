@@ -1,10 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Filters, defaultFilters, type FilterState } from "@/components/Filters";
 import { applyFilters, quarterOf, quartersWindow, useReleases, type Release } from "@/lib/releases";
 import { ReleaseCard } from "@/components/ReleaseCard";
 import { ReleaseDrawer } from "@/components/ReleaseDrawer";
 import { ActiveProductsBar } from "@/components/ActiveProductsBar";
+import { AIInsightsSummary } from "@/components/AIInsightsSummary";
 import { useActiveProductIds } from "@/lib/products";
 import { ChevronDown } from "lucide-react";
 
@@ -17,6 +19,7 @@ function TimelinePage() {
   const [selected, setSelected] = useState<Release | null>(null);
   const { data, isLoading } = useReleases();
   const { activeIds, products } = useActiveProductIds();
+  const qc = useQueryClient();
   const quarters = useMemo(quartersWindow, []);
   const currentQuarter = useMemo(() => {
     const now = new Date();
@@ -51,6 +54,42 @@ function TimelinePage() {
     (acc, p) => acc + (activeByProduct[p.id]?.length ?? 0),
     0,
   );
+
+  const quarterReleases = useMemo(() => {
+    const releases = filtered.filter((r) => quarterOf(r.release_date) === activeQuarter);
+    return releases.map((r) => ({
+      title: r.title,
+      category: r.category ?? "Other",
+      status: r.status ?? "Unknown",
+      source: r.source,
+    }));
+  }, [filtered, activeQuarter]);
+
+  const insightsQ = useQuery({
+    queryKey: ["ai_insights_timeline", Array.from(activeIds), activeQuarter],
+    queryFn: async () => {
+      if (activeProducts.length === 0 || quarterReleases.length === 0) {
+        return { insights: [] };
+      }
+      const res = await fetch("/api/ai/insights", {
+        method: "POST",
+        body: JSON.stringify({
+          products: activeProducts.map((p) => ({ name: p.name, color: p.color })),
+          releases: quarterReleases,
+          quarter: activeQuarter,
+          variant: "timeline",
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    },
+    staleTime: 1000 * 60 * 60,
+    enabled: activeProducts.length > 0 && quarterReleases.length > 0,
+  });
+
+  useEffect(() => {
+    qc.invalidateQueries({ queryKey: ["ai_insights_timeline"] });
+  }, [activeIds, activeQuarter, qc]);
 
   return (
     <div>
@@ -105,6 +144,11 @@ function TimelinePage() {
               </span>
             ))}
           </div>
+          <AIInsightsSummary
+            variant="timeline"
+            insights={insightsQ.data?.insights}
+            isLoading={insightsQ.isLoading}
+          />
           {totalActive === 0 ? (
             <div className="rounded-md border border-dashed border-border p-12 text-center text-sm text-muted-foreground">
               No releases in this quarter. Try another one above.

@@ -14,7 +14,11 @@ dist-ssr
 .vinxi
 .tanstack/**
 .nitro
+
+# Local environment files (contains secrets - NEVER COMMIT)
 *.local
+.env.local
+.env.*.local
 
 # Wrangler / Cloudflare
 .wrangler/

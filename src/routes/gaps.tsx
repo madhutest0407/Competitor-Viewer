@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { ActiveProductsBar } from "@/components/ActiveProductsBar";
+import { AIInsightsSummary } from "@/components/AIInsightsSummary";
 import { useActiveProductIds } from "@/lib/products";
 
 export const Route = createFileRoute("/gaps")({
@@ -59,6 +60,42 @@ function GapsPage() {
     return m;
   }, [notesQ.data]);
 
+  const qc = useQueryClient();
+  const allReleases = useMemo(() => {
+    return (data ?? []).map((r) => ({
+      title: r.title,
+      category: r.category ?? "Other",
+      status: r.status ?? "Unknown",
+      source: r.source,
+    }));
+  }, [data]);
+
+  const insightsQ = useQuery({
+    queryKey: ["ai_insights_gaps", Array.from(activeIds)],
+    queryFn: async () => {
+      if (activeProducts.length === 0 || allReleases.length === 0) {
+        return { insights: [] };
+      }
+      const res = await fetch("/api/ai/insights", {
+        method: "POST",
+        body: JSON.stringify({
+          products: activeProducts.map((p) => ({ name: p.name, color: p.color })),
+          releases: allReleases,
+          quarter: "",
+          variant: "gaps",
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    },
+    staleTime: 1000 * 60 * 60,
+    enabled: activeProducts.length > 0 && allReleases.length > 0,
+  });
+
+  useEffect(() => {
+    qc.invalidateQueries({ queryKey: ["ai_insights_gaps"] });
+  }, [activeIds, qc]);
+
   return (
     <div>
       <header className="border-b border-border px-6 py-4">
@@ -69,6 +106,11 @@ function GapsPage() {
       </header>
       <ActiveProductsBar />
       <div className="p-4">
+        <AIInsightsSummary
+          variant="gaps"
+          insights={insightsQ.data?.insights}
+          isLoading={insightsQ.isLoading}
+        />
         <table className="w-full border-collapse text-left text-xs">
           <thead>
             <tr className="border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground">
