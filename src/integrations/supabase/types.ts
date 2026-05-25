@@ -74,6 +74,42 @@ export type Database = {
         }
         Relationships: []
       }
+      products: {
+        Row: {
+          color: string
+          created_at: string
+          default_enabled: boolean
+          description: string | null
+          feed_kind: string
+          feed_url: string | null
+          id: string
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          default_enabled?: boolean
+          description?: string | null
+          feed_kind: string
+          feed_url?: string | null
+          id: string
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          default_enabled?: boolean
+          description?: string | null
+          feed_kind?: string
+          feed_url?: string | null
+          id?: string
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -175,6 +211,35 @@ export type Database = {
           triggered_by?: string
         }
         Relationships: []
+      }
+      user_product_prefs: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          product_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          product_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          product_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_product_prefs_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
