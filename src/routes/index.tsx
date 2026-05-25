@@ -4,6 +4,8 @@ import { Filters, defaultFilters, type FilterState } from "@/components/Filters"
 import { applyFilters, quarterOf, quartersWindow, useReleases, type Release } from "@/lib/releases";
 import { ReleaseCard } from "@/components/ReleaseCard";
 import { ReleaseDrawer } from "@/components/ReleaseDrawer";
+import { ActiveProductsBar } from "@/components/ActiveProductsBar";
+import { useActiveProductIds } from "@/lib/products";
 import { ChevronDown } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -14,6 +16,7 @@ function TimelinePage() {
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [selected, setSelected] = useState<Release | null>(null);
   const { data, isLoading } = useReleases();
+  const { activeIds, products } = useActiveProductIds();
   const quarters = useMemo(quartersWindow, []);
   const currentQuarter = useMemo(() => {
     const now = new Date();
@@ -21,20 +24,33 @@ function TimelinePage() {
   }, []);
   const [activeQuarter, setActiveQuarter] = useState<string>(currentQuarter);
 
-  const filtered = useMemo(() => applyFilters(data ?? [], filters), [data, filters]);
+  const filtered = useMemo(
+    () => applyFilters(data ?? [], filters).filter((r) => activeIds.has(r.source)),
+    [data, filters, activeIds],
+  );
+  const activeProducts = useMemo(
+    () => products.filter((p) => activeIds.has(p.id)),
+    [products, activeIds],
+  );
 
   const grouped = useMemo(() => {
-    const map: Record<string, Record<"google" | "microsoft", Release[]>> = {};
-    for (const q of quarters) map[q] = { google: [], microsoft: [] };
+    const map: Record<string, Record<string, Release[]>> = {};
+    for (const q of quarters) {
+      map[q] = {};
+      for (const p of activeProducts) map[q][p.id] = [];
+    }
     for (const r of filtered) {
       const q = quarterOf(r.release_date);
-      if (q && map[q]) map[q][r.source].push(r);
+      if (q && map[q] && map[q][r.source]) map[q][r.source].push(r);
     }
     return map;
-  }, [filtered, quarters]);
+  }, [filtered, quarters, activeProducts]);
 
-  const active = grouped[activeQuarter] ?? { google: [], microsoft: [] };
-  const totalActive = active.google.length + active.microsoft.length;
+  const activeByProduct = grouped[activeQuarter] ?? {};
+  const totalActive = activeProducts.reduce(
+    (acc, p) => acc + (activeByProduct[p.id]?.length ?? 0),
+    0,
+  );
 
   return (
     <div>
@@ -44,11 +60,14 @@ function TimelinePage() {
           Browse one quarter at a time. Pick a quarter below to focus.
         </p>
       </header>
+      <ActiveProductsBar />
       <Filters value={filters} onChange={setFilters} />
       <div className="flex items-center gap-1 overflow-x-auto border-b border-border bg-background/60 px-6 py-2">
         {quarters.map((q) => {
-          const count =
-            (grouped[q]?.google.length ?? 0) + (grouped[q]?.microsoft.length ?? 0);
+          const count = activeProducts.reduce(
+            (acc, p) => acc + (grouped[q]?.[p.id]?.length ?? 0),
+            0,
+          );
           const isActive = q === activeQuarter;
           const isCurrent = q === currentQuarter;
           return (
@@ -70,38 +89,42 @@ function TimelinePage() {
       </div>
       {isLoading ? (
         <div className="p-8 text-sm text-muted-foreground">Loading releases…</div>
+      ) : activeProducts.length === 0 ? (
+        <div className="p-8 text-sm text-muted-foreground">
+          Select at least one product above to see releases.
+        </div>
       ) : (
         <div className="p-6">
           <div className="mb-4 flex flex-wrap items-baseline gap-4 text-xs text-muted-foreground">
             <span className="text-sm font-medium text-foreground">{activeQuarter}</span>
             <span>{totalActive} releases</span>
-            <span className="inline-flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "var(--vendor-google)" }} />
-              {active.google.length} Google
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "var(--vendor-microsoft)" }} />
-              {active.microsoft.length} Microsoft
-            </span>
+            {activeProducts.map((p) => (
+              <span key={p.id} className="inline-flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: p.color }} />
+                {activeByProduct[p.id]?.length ?? 0} {p.name}
+              </span>
+            ))}
           </div>
           {totalActive === 0 ? (
             <div className="rounded-md border border-dashed border-border p-12 text-center text-sm text-muted-foreground">
               No releases in this quarter. Try another one above.
             </div>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2">
-              <Lane
-                label="Google Workspace"
-                color="var(--vendor-google)"
-                items={active.google}
-                onSelect={setSelected}
-              />
-              <Lane
-                label="Microsoft 365"
-                color="var(--vendor-microsoft)"
-                items={active.microsoft}
-                onSelect={setSelected}
-              />
+            <div
+              className="grid gap-4"
+              style={{
+                gridTemplateColumns: `repeat(${Math.min(activeProducts.length, 4)}, minmax(0, 1fr))`,
+              }}
+            >
+              {activeProducts.map((p) => (
+                <Lane
+                  key={p.id}
+                  label={p.name}
+                  color={p.color}
+                  items={activeByProduct[p.id] ?? []}
+                  onSelect={setSelected}
+                />
+              ))}
             </div>
           )}
         </div>
