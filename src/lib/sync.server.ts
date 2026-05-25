@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { CATEGORIES, normalizeStatus } from "./categories";
+import { XMLParser } from "fast-xml-parser";
 
 // Restrict Microsoft items to Calendar + Mail products only.
 const MS_PRODUCT_ALLOW = ["outlook", "exchange", "bookings", "places"];
@@ -126,6 +127,212 @@ async function aiCategorizeMs(
     return CATEGORIES.includes(parsed.category) ? parsed.category : "Other";
   } catch {
     return "Other";
+  }
+}
+
+async function aiCategorizeGeneric(
+  productName: string,
+  title: string,
+  description: string,
+): Promise<string> {
+  const key = process.env.LOVABLE_API_KEY;
+  if (!key) return "Other";
+  try {
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: "You output ONLY valid JSON. No prose." },
+          {
+            role: "user",
+            content: `Classify this ${productName} product update into ONE category from: ${CATEGORIES.join(", ")}. If it is not relevant to calendar / mail / scheduling / productivity tools, choose "Other".\nTitle: ${title}\nDescription: ${description.slice(0, 1500)}\nReturn JSON: {"category": "..."}`,
+          },
+        ],
+      }),
+    });
+    if (!res.ok) return "Other";
+    const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    const text = (json.choices?.[0]?.message?.content ?? "{}").replace(/```json|```/g, "").trim();
+    const parsed = JSON.parse(text);
+    return CATEGORIES.includes(parsed.category) ? parsed.category : "Other";
+  } catch {
+    return "Other";
+  }
+}
+
+type RssItem = {
+  id: string;
+  title: string;
+  link: string;
+  description: string;
+  published: string | null;
+};
+
+function parseFeed(xml: string): RssItem[] {
+  const parser = new XMLParser({
+    ignoreAttributes: false,
+    attributeNamePrefix: "@_",
+    textNodeName: "#text",
+  });
+  const doc = parser.parse(xml) as Record<string, unknown>;
+  const items: RssItem[] = [];
+
+  const rss = (doc.rss as { channel?: { item?: unknown } } | undefined)?.channel;
+  if (rss && rss.item) {
+    const arr = Array.isArray(rss.item) ? rss.item : [rss.item];
+    for (const it of arr as Record<string, unknown>[]) {
+      const guid =
+        typeof it.guid === "string"
+          ? it.guid
+          : ((it.guid as { "#text"?: string } | undefined)?.["#text"] ?? "");
+      const link = typeof it.link === "string" ? it.link : "";
+      items.push({
+        id: String(guid || link || it.title || Math.random()),
+        title: String(it.title ?? "").trim(),
+        link,
+        description: String(it.description ?? it["content:encoded"] ?? ""),
+        published: it.pubDate ? new Date(String(it.pubDate)).toISOString().slice(0, 10) : null,
+      });
+    }
+    return items;
+  }
+
+  const feed = doc.feed as { entry?: unknown } | undefined;
+  if (feed && feed.entry) {
+    const arr = Array.isArray(feed.entry) ? feed.entry : [feed.entry];
+    for (const it of arr as Record<string, unknown>[]) {
+      const linkRaw = it.link as unknown;
+      let link = "";
+      if (Array.isArray(linkRaw)) {
+        const alt = (linkRaw as Array<Record<string, unknown>>).find(
+          (l) => l["@_rel"] === "alternate" || !l["@_rel"],
+        );
+        link = String(alt?.["@_href"] ?? "");
+      } else if (linkRaw && typeof linkRaw === "object") {
+        link = String((linkRaw as Record<string, unknown>)["@_href"] ?? "");
+      }
+      const id = String(it.id ?? link ?? it.title ?? Math.random());
+      const title =
+        typeof it.title === "string"
+          ? it.title
+          : String((it.title as { "#text"?: string } | undefined)?.["#text"] ?? "");
+      const contentRaw = it.content ?? it.summary;
+      const description =
+        typeof contentRaw === "string"
+          ? contentRaw
+          : String((contentRaw as { "#text"?: string } | undefined)?.["#text"] ?? "");
+      const pub = it.published ?? it.updated;
+      items.push({
+        id,
+        title: title.trim(),
+        link,
+        description,
+        published: pub ? new Date(String(pub)).toISOString().slice(0, 10) : null,
+      });
+    }
+  }
+  return items;
+}
+
+export async function syncProductRss(
+  productId: string,
+  triggeredBy: "cron" | "manual",
+): Promise<{ ok: boolean; upserted: number; error?: string; rateLimited?: boolean }> {
+  if (triggeredBy === "manual" && !(await rateLimitCheck(productId))) {
+    return { ok: false, upserted: 0, rateLimited: true, error: "Rate limited (1 sync per 10 min)" };
+  }
+  const { data: product, error: pErr } = await supabaseAdmin
+    .from("products")
+    .select("id,name,feed_url,feed_kind")
+    .eq("id", productId)
+    .single();
+  if (pErr || !product) return { ok: false, upserted: 0, error: pErr?.message ?? "Product not found" };
+  if (!product.feed_url) return { ok: false, upserted: 0, error: "No feed_url for product" };
+
+  const { data: run } = await supabaseAdmin
+    .from("sync_runs")
+    .insert({ source: product.id, triggered_by: triggeredBy })
+    .select("id")
+    .single();
+
+  try {
+    const res = await fetch(product.feed_url, {
+      headers: {
+        Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
+        "User-Agent": "CalRadar/1.0 (+https://calradar.app)",
+      },
+    });
+    if (!res.ok) throw new Error(`Feed ${product.feed_url} ${res.status}`);
+    const xml = await res.text();
+    const items = parseFeed(xml).slice(0, 100);
+
+    const { data: existingRows } = await supabaseAdmin
+      .from("releases")
+      .select("source_id, category")
+      .eq("source", product.id);
+    const existingMap = new Map((existingRows ?? []).map((r) => [r.source_id, r.category]));
+
+    const rows = items.map((it) => {
+      const text = stripHtml(it.description);
+      return {
+        source: product.id,
+        source_id: it.id,
+        title: it.title || "(untitled)",
+        description: text.slice(0, 4000),
+        summary: text.slice(0, 240),
+        status: "Generally available",
+        category: existingMap.get(it.id) ?? null,
+        release_date: it.published,
+        announced_date: it.published,
+        source_url: it.link || null,
+        platforms: [],
+        audience: [],
+        raw: it as never,
+      };
+    });
+
+    let upserted = 0;
+    const CHUNK = 100;
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      const chunk = rows.slice(i, i + CHUNK);
+      const { error } = await supabaseAdmin
+        .from("releases")
+        .upsert(chunk, { onConflict: "source,source_id" });
+      if (!error) upserted += chunk.length;
+    }
+
+    const needsAi = items.filter((it) => !existingMap.get(it.id)).slice(0, 30);
+    const AI_BATCH = 5;
+    for (let i = 0; i < needsAi.length; i += AI_BATCH) {
+      const batch = needsAi.slice(i, i + AI_BATCH);
+      const cats = await Promise.all(
+        batch.map((it) => aiCategorizeGeneric(product.name, it.title, stripHtml(it.description))),
+      );
+      await Promise.all(
+        batch.map((it, idx) =>
+          supabaseAdmin
+            .from("releases")
+            .update({ category: cats[idx] })
+            .eq("source", product.id)
+            .eq("source_id", it.id),
+        ),
+      );
+    }
+
+    await supabaseAdmin
+      .from("sync_runs")
+      .update({ finished_at: new Date().toISOString(), items_upserted: upserted })
+      .eq("id", run!.id);
+    return { ok: true, upserted };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    await supabaseAdmin
+      .from("sync_runs")
+      .update({ finished_at: new Date().toISOString(), error: msg })
+      .eq("id", run!.id);
+    return { ok: false, upserted: 0, error: msg };
   }
 }
 

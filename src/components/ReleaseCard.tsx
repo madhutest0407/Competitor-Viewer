@@ -1,5 +1,6 @@
 import type { Release } from "@/lib/releases";
 import { STATUS_COLORS, type Status } from "@/lib/categories";
+import { useProducts } from "@/lib/products";
 
 export function ReleaseCard({
   release,
@@ -8,8 +9,10 @@ export function ReleaseCard({
   release: Release;
   onClick?: () => void;
 }) {
-  const vendorVar =
-    release.source === "google" ? "var(--vendor-google)" : "var(--vendor-microsoft)";
+  const { data: products } = useProducts();
+  const product = products?.find((p) => p.id === release.source);
+  const vendorVar = product?.color ?? "var(--vendor-default)";
+  const vendorLabel = product?.name ?? release.source;
   const statusColor =
     STATUS_COLORS[(release.status as Status) ?? "Planned"] ?? "var(--status-planned)";
   return (
@@ -22,7 +25,7 @@ export function ReleaseCard({
           className="rounded px-1 py-px font-medium text-background"
           style={{ backgroundColor: vendorVar }}
         >
-          {release.source}
+          {vendorLabel}
         </span>
         <span
           className="inline-flex items-center gap-1 text-muted-foreground"
