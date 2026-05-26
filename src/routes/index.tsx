@@ -80,8 +80,11 @@ function TimelinePage() {
           variant: "timeline",
         }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return res.json();
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return { insights: [], error: json.error ?? `HTTP ${res.status}` };
+      }
+      return json;
     },
     staleTime: 1000 * 60 * 60,
     enabled: activeProducts.length > 0 && quarterReleases.length > 0,
@@ -148,6 +151,7 @@ function TimelinePage() {
             variant="timeline"
             insights={insightsQ.data?.insights}
             isLoading={insightsQ.isLoading}
+            error={insightsQ.data?.error ?? null}
           />
           {totalActive === 0 ? (
             <div className="rounded-md border border-dashed border-border p-12 text-center text-sm text-muted-foreground">
