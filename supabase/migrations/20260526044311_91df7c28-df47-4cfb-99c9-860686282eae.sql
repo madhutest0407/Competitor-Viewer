@@ -1,0 +1,1 @@
+ALTER TABLE public.releases DROP CONSTRAINT IF EXISTS releases_source_check;
