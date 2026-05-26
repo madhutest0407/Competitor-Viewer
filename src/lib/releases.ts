@@ -28,8 +28,8 @@ export function useReleases() {
         .select(
           "id,source,source_id,title,description,summary,status,category,release_date,announced_date,source_url,platforms,audience,updated_at",
         )
-        .order("release_date", { ascending: true, nullsFirst: false })
-        .limit(1000);
+        .order("release_date", { ascending: false, nullsFirst: false })
+        .limit(2000);
       if (error) throw new Error(error.message);
       return (data ?? []) as Release[];
     },
