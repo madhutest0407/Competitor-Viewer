@@ -14,6 +14,7 @@ import { Route as MeRouteImport } from './routes/me'
 import { Route as GapsRouteImport } from './routes/gaps'
 import { Route as CompareRouteImport } from './routes/compare'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiAiInsightsRouteImport } from './routes/api/ai/insights'
 import { Route as ApiPublicSyncProductRouteImport } from './routes/api/public/sync.product'
 import { Route as ApiPublicSyncMicrosoftRouteImport } from './routes/api/public/sync.microsoft'
 import { Route as ApiPublicSyncGoogleRouteImport } from './routes/api/public/sync.google'
@@ -43,6 +44,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAiInsightsRoute = ApiAiInsightsRouteImport.update({
+  id: '/api/ai/insights',
+  path: '/api/ai/insights',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicSyncProductRoute = ApiPublicSyncProductRouteImport.update({
   id: '/api/public/sync/product',
   path: '/api/public/sync/product',
@@ -65,6 +71,7 @@ export interface FileRoutesByFullPath {
   '/gaps': typeof GapsRoute
   '/me': typeof MeRoute
   '/sources': typeof SourcesRoute
+  '/api/ai/insights': typeof ApiAiInsightsRoute
   '/api/public/sync/google': typeof ApiPublicSyncGoogleRoute
   '/api/public/sync/microsoft': typeof ApiPublicSyncMicrosoftRoute
   '/api/public/sync/product': typeof ApiPublicSyncProductRoute
@@ -75,6 +82,7 @@ export interface FileRoutesByTo {
   '/gaps': typeof GapsRoute
   '/me': typeof MeRoute
   '/sources': typeof SourcesRoute
+  '/api/ai/insights': typeof ApiAiInsightsRoute
   '/api/public/sync/google': typeof ApiPublicSyncGoogleRoute
   '/api/public/sync/microsoft': typeof ApiPublicSyncMicrosoftRoute
   '/api/public/sync/product': typeof ApiPublicSyncProductRoute
@@ -86,6 +94,7 @@ export interface FileRoutesById {
   '/gaps': typeof GapsRoute
   '/me': typeof MeRoute
   '/sources': typeof SourcesRoute
+  '/api/ai/insights': typeof ApiAiInsightsRoute
   '/api/public/sync/google': typeof ApiPublicSyncGoogleRoute
   '/api/public/sync/microsoft': typeof ApiPublicSyncMicrosoftRoute
   '/api/public/sync/product': typeof ApiPublicSyncProductRoute
@@ -98,6 +107,7 @@ export interface FileRouteTypes {
     | '/gaps'
     | '/me'
     | '/sources'
+    | '/api/ai/insights'
     | '/api/public/sync/google'
     | '/api/public/sync/microsoft'
     | '/api/public/sync/product'
@@ -108,6 +118,7 @@ export interface FileRouteTypes {
     | '/gaps'
     | '/me'
     | '/sources'
+    | '/api/ai/insights'
     | '/api/public/sync/google'
     | '/api/public/sync/microsoft'
     | '/api/public/sync/product'
@@ -118,6 +129,7 @@ export interface FileRouteTypes {
     | '/gaps'
     | '/me'
     | '/sources'
+    | '/api/ai/insights'
     | '/api/public/sync/google'
     | '/api/public/sync/microsoft'
     | '/api/public/sync/product'
@@ -129,6 +141,7 @@ export interface RootRouteChildren {
   GapsRoute: typeof GapsRoute
   MeRoute: typeof MeRoute
   SourcesRoute: typeof SourcesRoute
+  ApiAiInsightsRoute: typeof ApiAiInsightsRoute
   ApiPublicSyncGoogleRoute: typeof ApiPublicSyncGoogleRoute
   ApiPublicSyncMicrosoftRoute: typeof ApiPublicSyncMicrosoftRoute
   ApiPublicSyncProductRoute: typeof ApiPublicSyncProductRoute
@@ -171,6 +184,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/ai/insights': {
+      id: '/api/ai/insights'
+      path: '/api/ai/insights'
+      fullPath: '/api/ai/insights'
+      preLoaderRoute: typeof ApiAiInsightsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/sync/product': {
       id: '/api/public/sync/product'
       path: '/api/public/sync/product'
@@ -201,6 +221,7 @@ const rootRouteChildren: RootRouteChildren = {
   GapsRoute: GapsRoute,
   MeRoute: MeRoute,
   SourcesRoute: SourcesRoute,
+  ApiAiInsightsRoute: ApiAiInsightsRoute,
   ApiPublicSyncGoogleRoute: ApiPublicSyncGoogleRoute,
   ApiPublicSyncMicrosoftRoute: ApiPublicSyncMicrosoftRoute,
   ApiPublicSyncProductRoute: ApiPublicSyncProductRoute,

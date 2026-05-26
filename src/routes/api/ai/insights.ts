@@ -36,43 +36,46 @@ function getCacheKey(
   return `insights_${variant}_${products.sort().join(",")}_.${quarter}`;
 }
 
-async function callLovableAI(
-  prompt: string,
-): Promise<Insight[]> {
+type AiResult =
+  | { ok: true; insights: Insight[] }
+  | { ok: false; status: number; message: string };
+
+async function callLovableAI(prompt: string): Promise<AiResult> {
   const key = process.env.LOVABLE_API_KEY;
   if (!key) {
-    return [
-      {
-        text: "Configure LOVABLE_API_KEY to enable AI insights.",
-        type: "trend",
-      },
-    ];
+    return { ok: false, status: 500, message: "AI is not configured for this project." };
   }
 
   try {
-    const res = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${key}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [
-            {
-              role: "system",
-              content:
-                "You are a product strategy analyst. Output ONLY valid JSON. No prose, no markdown, no extra text.",
-            },
-            { role: "user", content: prompt },
-          ],
-        }),
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a product strategy analyst. Output ONLY valid JSON. No prose, no markdown, no extra text.",
+          },
+          { role: "user", content: prompt },
+        ],
+      }),
+    });
 
-    if (!res.ok) throw new Error(`AI gateway ${res.status}`);
+    if (res.status === 429) {
+      return { ok: false, status: 429, message: "AI rate limit reached. Try again in a minute." };
+    }
+    if (res.status === 402) {
+      return { ok: false, status: 402, message: "AI credits exhausted. Add credits in Workspace settings." };
+    }
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      return { ok: false, status: res.status, message: `AI gateway ${res.status}${body ? `: ${body.slice(0, 120)}` : ""}` };
+    }
 
     const json = (await res.json()) as {
       choices?: Array<{ message?: { content?: string } }>;
@@ -81,9 +84,9 @@ async function callLovableAI(
     const cleaned = text.replace(/```json|```/g, "").trim();
     const parsed = JSON.parse(cleaned);
 
-    if (!Array.isArray(parsed)) return [];
+    if (!Array.isArray(parsed)) return { ok: true, insights: [] };
 
-    return parsed.slice(0, 3).map((item: unknown) => {
+    const insights = parsed.slice(0, 3).map((item: unknown) => {
       const obj = item as Record<string, unknown>;
       return {
         text: String(obj.text ?? "").slice(0, 200) || "",
@@ -94,9 +97,14 @@ async function callLovableAI(
           : "trend",
       };
     });
+    return { ok: true, insights };
   } catch (err) {
     console.warn("callLovableAI failed", err);
-    return [];
+    return {
+      ok: false,
+      status: 500,
+      message: err instanceof Error ? err.message : "AI call failed",
+    };
   }
 }
 
@@ -207,13 +215,17 @@ export const Route = createFileRoute("/api/ai/insights")({
           prompt = buildGapsPrompt(releases, products);
         }
 
-        const insights = await callLovableAI(prompt);
-
-        if (insights.length > 0) {
-          cache.set(cacheKey, { insights, timestamp: Date.now() });
+        const result = await callLovableAI(prompt);
+        if (!result.ok) {
+          return Response.json(
+            { insights: [], error: result.message },
+            { status: result.status },
+          );
         }
-
-        return Response.json({ insights } as InsightResponse);
+        if (result.insights.length > 0) {
+          cache.set(cacheKey, { insights: result.insights, timestamp: Date.now() });
+        }
+        return Response.json({ insights: result.insights } as InsightResponse);
       },
     },
   },

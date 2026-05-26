@@ -9,12 +9,14 @@ interface AIInsightsSummaryProps {
   variant: "timeline" | "gaps";
   insights?: Insight[];
   isLoading?: boolean;
+  error?: string | null;
 }
 
 export function AIInsightsSummary({
   variant,
   insights,
   isLoading,
+  error,
 }: AIInsightsSummaryProps) {
   const title =
     variant === "timeline"
@@ -40,6 +42,15 @@ export function AIInsightsSummary({
             </div>
           ))}
         </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mb-4 rounded-md border border-destructive/40 bg-destructive/5 p-4">
+        <div className="mb-1 text-sm font-semibold text-foreground">{title}</div>
+        <p className="text-xs text-destructive">{error}</p>
       </div>
     );
   }

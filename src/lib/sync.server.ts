@@ -306,7 +306,11 @@ export async function syncProductRss(
       const { error } = await supabaseAdmin
         .from("releases")
         .upsert(chunk, { onConflict: "source,source_id" });
-      if (!error) upserted += chunk.length;
+      if (error) {
+        console.error(`[syncProductRss:${product.id}] upsert error`, error);
+        throw new Error(`upsert failed: ${error.message}`);
+      }
+      upserted += chunk.length;
     }
 
     const needsAi = items.filter((it) => !existingMap.get(it.id)).slice(0, 30);

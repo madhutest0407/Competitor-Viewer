@@ -85,8 +85,11 @@ function GapsPage() {
           variant: "gaps",
         }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return res.json();
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return { insights: [], error: json.error ?? `HTTP ${res.status}` };
+      }
+      return json;
     },
     staleTime: 1000 * 60 * 60,
     enabled: activeProducts.length > 0 && allReleases.length > 0,
@@ -110,6 +113,7 @@ function GapsPage() {
           variant="gaps"
           insights={insightsQ.data?.insights}
           isLoading={insightsQ.isLoading}
+          error={insightsQ.data?.error ?? null}
         />
         <table className="w-full border-collapse text-left text-xs">
           <thead>
