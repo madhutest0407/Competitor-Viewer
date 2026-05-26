@@ -77,11 +77,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "PM Radar — Google & Microsoft calendar releases" },
       { name: "description", content: "Timeline, board and gap analysis of Google Workspace and Microsoft 365 calendar releases for product managers." },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "PM Radar" },
-      { property: "og:description", content: "Track Google & Microsoft calendar releases on one timeline." },
+      { property: "og:title", content: "PM Radar — Google & Microsoft calendar releases" },
+      { property: "og:description", content: "Timeline, board and gap analysis of Google Workspace and Microsoft 365 calendar releases for product managers." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "PM Radar — Google & Microsoft calendar releases" },
+      { name: "twitter:description", content: "Timeline, board and gap analysis of Google Workspace and Microsoft 365 calendar releases for product managers." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/29a0659d-eefa-4819-9e5c-07ae32f75457/id-preview-b34bb436--49d7bbfe-790c-4280-a3fe-7075c9fc3372.lovable.app-1779773141351.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/29a0659d-eefa-4819-9e5c-07ae32f75457/id-preview-b34bb436--49d7bbfe-790c-4280-a3fe-7075c9fc3372.lovable.app-1779773141351.png" },
     ],
     links: [
       {
