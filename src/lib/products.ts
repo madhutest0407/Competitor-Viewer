@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 
@@ -63,6 +63,30 @@ function writeLs(set: Set<string>) {
   window.localStorage.setItem(LS_KEY, JSON.stringify(Array.from(set)));
 }
 
+// Module-level shared store for anonymous active product ids so every
+// component instance (ActiveProductsBar, Timeline, Compare, Gaps) sees the
+// same selection. Without this, each useState lived per-component and
+// toggling in the bar did not update the page lanes.
+type Listener = () => void;
+let anonStore: Set<string> | null = null;
+const listeners = new Set<Listener>();
+function getAnonStore(): Set<string> {
+  if (anonStore === null) anonStore = readLs();
+  return anonStore;
+}
+function setAnonStore(next: Set<string>) {
+  anonStore = next;
+  writeLs(next);
+  listeners.forEach((l) => l());
+}
+function subscribeAnon(l: Listener) {
+  listeners.add(l);
+  return () => listeners.delete(l);
+}
+function snapshotAnon() {
+  return getAnonStore();
+}
+
 /**
  * Active products: returns the set of product ids currently active for the
  * viewer. When authenticated, prefs are persisted to `user_product_prefs`
@@ -73,20 +97,15 @@ export function useActiveProductIds() {
   const { user } = useAuth();
   const productsQ = useProducts();
   const prefsQ = useUserProductPrefs();
-  const [anonIds, setAnonIds] = useState<Set<string>>(() => new Set());
-  const [initialised, setInitialised] = useState(false);
+  const anonIds = useSyncExternalStore(subscribeAnon, snapshotAnon, snapshotAnon);
 
-  // Initialise anon state from localStorage or defaults.
+  // Seed anon defaults once products load and nothing has been picked yet.
   useEffect(() => {
-    if (user || initialised || !productsQ.data) return;
-    const ls = readLs();
-    if (ls.size > 0) {
-      setAnonIds(ls);
-    } else {
-      setAnonIds(new Set(productsQ.data.filter((p) => p.default_enabled).map((p) => p.id)));
-    }
-    setInitialised(true);
-  }, [user, productsQ.data, initialised]);
+    if (user || !productsQ.data) return;
+    if (typeof window === "undefined") return;
+    if (window.localStorage.getItem(LS_KEY) !== null) return;
+    setAnonStore(new Set(productsQ.data.filter((p) => p.default_enabled).map((p) => p.id)));
+  }, [user, productsQ.data]);
 
   let active: Set<string> = new Set();
   if (user) {
@@ -115,11 +134,10 @@ export function useActiveProductIds() {
       if (error) return { ok: false as const, reason: error.message };
       await prefsQ.refetch();
     } else {
-      const nextSet = new Set(anonIds);
+      const nextSet = new Set(getAnonStore());
       if (next) nextSet.add(productId);
       else nextSet.delete(productId);
-      writeLs(nextSet);
-      setAnonIds(nextSet);
+      setAnonStore(nextSet);
     }
     return { ok: true as const };
   };
