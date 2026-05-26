@@ -157,7 +157,7 @@ wrangler secret put LOVABLE_API_KEY
 - Open source for full transparency
 
 ## Live Demo
-[Coming Soon - Add URL here]
+[Demo Link](https://competitorradar.lovable.app/)
 
 ## GitHub
 [madhutest0407/Competitor-Viewer](https://github.com/madhutest0407/Competitor-Viewer)
