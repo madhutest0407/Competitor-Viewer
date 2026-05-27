@@ -71,7 +71,8 @@ function TimelinePage() {
       if (activeProducts.length === 0 || quarterReleases.length === 0) {
         return { insights: [] };
       }
-      const res = await fetch("/api/ai/insights", {
+      const { authedFetch } = await import("@/lib/authed-fetch");
+      const res = await authedFetch("/api/ai/insights", {
         method: "POST",
         body: JSON.stringify({
           products: activeProducts.map((p) => ({ name: p.name, color: p.color })),
