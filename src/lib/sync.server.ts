@@ -49,6 +49,19 @@ function stripHtml(html: string): string {
     .trim();
 }
 
+function safeHttpUrl(u: string | null | undefined): string | null {
+  if (!u || typeof u !== "string") return null;
+  try {
+    const parsed = new URL(u);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return parsed.toString();
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 async function aiExtract(
   title: string,
   contentText: string,
@@ -292,7 +305,7 @@ export async function syncProductRss(
         category: existingMap.get(it.id) ?? null,
         release_date: it.published,
         announced_date: it.published,
-        source_url: it.link || null,
+        source_url: safeHttpUrl(it.link),
         platforms: [],
         audience: [],
         raw: it as never,
@@ -561,7 +574,7 @@ export async function syncGoogle(triggeredBy: "cron" | "manual"): Promise<{
         category: existing?.category ?? null,
         release_date: entry.published.$t.slice(0, 10),
         announced_date: entry.published.$t.slice(0, 10),
-        source_url: sourceUrl,
+        source_url: safeHttpUrl(sourceUrl),
         platforms: [],
         audience,
         raw: entry as never,
