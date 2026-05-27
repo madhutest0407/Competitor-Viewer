@@ -49,6 +49,19 @@ function stripHtml(html: string): string {
     .trim();
 }
 
+function safeHttpUrl(u: string | null | undefined): string | null {
+  if (!u || typeof u !== "string") return null;
+  try {
+    const parsed = new URL(u);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return parsed.toString();
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 async function aiExtract(
   title: string,
   contentText: string,
