@@ -305,7 +305,7 @@ export async function syncProductRss(
         category: existingMap.get(it.id) ?? null,
         release_date: it.published,
         announced_date: it.published,
-        source_url: it.link || null,
+        source_url: safeHttpUrl(it.link),
         platforms: [],
         audience: [],
         raw: it as never,
