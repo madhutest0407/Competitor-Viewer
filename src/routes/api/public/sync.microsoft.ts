@@ -1,13 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { syncMicrosoft } from "@/lib/sync.server";
+import { authorizeApiRequest } from "@/lib/api-auth.server";
 
 export const Route = createFileRoute("/api/public/sync/microsoft")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const triggered =
-          request.headers.get("x-trigger") === "cron" ? "cron" : "manual";
-        const result = await syncMicrosoft(triggered);
+        const auth = await authorizeApiRequest(request);
+        if (!auth.ok) return auth.response;
+        const result = await syncMicrosoft(auth.trigger);
         return Response.json(result, {
           status: result.ok ? 200 : result.rateLimited ? 429 : 500,
         });
