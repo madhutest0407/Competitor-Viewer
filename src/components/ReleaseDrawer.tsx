@@ -46,7 +46,7 @@ export function ReleaseDrawer({
                 </div>
               </div>
             )}
-            {release.source_url && (
+            {release.source_url && /^https?:\/\//i.test(release.source_url) && (
               <a
                 href={release.source_url}
                 target="_blank"
