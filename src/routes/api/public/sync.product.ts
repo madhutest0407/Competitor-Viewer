@@ -1,14 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { syncGoogle, syncMicrosoft, syncProductRss } from "@/lib/sync.server";
+import { authorizeApiRequest } from "@/lib/api-auth.server";
 
 export const Route = createFileRoute("/api/public/sync/product")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const auth = await authorizeApiRequest(request);
+        if (!auth.ok) return auth.response;
         const url = new URL(request.url);
         const id = url.searchParams.get("id");
         if (!id) return Response.json({ ok: false, error: "Missing id" }, { status: 400 });
-        const trigger = request.headers.get("x-trigger") === "cron" ? "cron" : "manual";
+        const trigger = auth.trigger;
         const result =
           id === "google"
             ? await syncGoogle(trigger)

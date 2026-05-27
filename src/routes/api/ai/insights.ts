@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { authorizeApiRequest } from "@/lib/api-auth.server";
 
 interface InsightRequest {
   products: Array<{ name: string; color: string }>;
@@ -190,6 +191,8 @@ export const Route = createFileRoute("/api/ai/insights")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const auth = await authorizeApiRequest(request);
+        if (!auth.ok) return auth.response;
         const body = (await request.json()) as InsightRequest;
 
         const { products, releases, quarter, variant } = body;
