@@ -30,7 +30,8 @@ function SourcesPage() {
 
   const sync = useMutation({
     mutationFn: async (productId: string) => {
-      const res = await fetch(`/api/public/sync/product?id=${encodeURIComponent(productId)}`, {
+      const { authedFetch } = await import("@/lib/authed-fetch");
+      const res = await authedFetch(`/api/public/sync/product?id=${encodeURIComponent(productId)}`, {
         method: "POST",
       });
       const json = await res.json();
