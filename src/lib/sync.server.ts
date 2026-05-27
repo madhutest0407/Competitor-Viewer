@@ -574,7 +574,7 @@ export async function syncGoogle(triggeredBy: "cron" | "manual"): Promise<{
         category: existing?.category ?? null,
         release_date: entry.published.$t.slice(0, 10),
         announced_date: entry.published.$t.slice(0, 10),
-        source_url: sourceUrl,
+        source_url: safeHttpUrl(sourceUrl),
         platforms: [],
         audience,
         raw: entry as never,
