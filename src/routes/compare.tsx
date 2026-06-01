@@ -9,6 +9,30 @@ import { useActiveProductIds } from "@/lib/products";
 
 export const Route = createFileRoute("/compare")({
   component: ComparePage,
+  head: () => ({
+    meta: [
+      { title: "Compare by category — PM Radar" },
+      {
+        name: "description",
+        content:
+          "Side-by-side comparison of Google and Microsoft calendar releases grouped by feature category.",
+      },
+      { property: "og:title", content: "Compare by category — PM Radar" },
+      {
+        property: "og:description",
+        content:
+          "Side-by-side comparison of Google and Microsoft calendar releases grouped by feature category.",
+      },
+      { property: "og:url", content: "https://competitorradar.lovable.app/compare" },
+      { name: "twitter:title", content: "Compare by category — PM Radar" },
+      {
+        name: "twitter:description",
+        content:
+          "Side-by-side comparison of Google and Microsoft calendar releases by category.",
+      },
+    ],
+    links: [{ rel: "canonical", href: "https://competitorradar.lovable.app/compare" }],
+  }),
 });
 
 function ComparePage() {

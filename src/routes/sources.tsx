@@ -9,6 +9,28 @@ import { useActiveProductIds, MAX_ACTIVE } from "@/lib/products";
 
 export const Route = createFileRoute("/sources")({
   component: SourcesPage,
+  head: () => ({
+    meta: [
+      { title: "Sources & sync — PM Radar" },
+      {
+        name: "description",
+        content:
+          "Manage tracked competitor products and review recent release-feed sync runs.",
+      },
+      { property: "og:title", content: "Sources & sync — PM Radar" },
+      {
+        property: "og:description",
+        content: "Manage tracked competitor products and review release-feed sync runs.",
+      },
+      { property: "og:url", content: "https://competitorradar.lovable.app/sources" },
+      { name: "twitter:title", content: "Sources & sync — PM Radar" },
+      {
+        name: "twitter:description",
+        content: "Manage tracked competitor products and review release-feed sync runs.",
+      },
+    ],
+    links: [{ rel: "canonical", href: "https://competitorradar.lovable.app/sources" }],
+  }),
 });
 
 function SourcesPage() {

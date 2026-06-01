@@ -12,6 +12,30 @@ import { ChevronDown } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   component: TimelinePage,
+  head: () => ({
+    meta: [
+      { title: "Timeline — PM Radar" },
+      {
+        name: "description",
+        content:
+          "Chronological feed of Google Workspace and Microsoft 365 calendar releases. Filter by quarter, product and category.",
+      },
+      { property: "og:title", content: "Timeline — PM Radar" },
+      {
+        property: "og:description",
+        content:
+          "Chronological feed of Google Workspace and Microsoft 365 calendar releases.",
+      },
+      { property: "og:url", content: "https://competitorradar.lovable.app/" },
+      { name: "twitter:title", content: "Timeline — PM Radar" },
+      {
+        name: "twitter:description",
+        content:
+          "Chronological feed of Google Workspace and Microsoft 365 calendar releases.",
+      },
+    ],
+    links: [{ rel: "canonical", href: "https://competitorradar.lovable.app/" }],
+  }),
 });
 
 function TimelinePage() {

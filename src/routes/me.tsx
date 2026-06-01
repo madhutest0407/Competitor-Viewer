@@ -24,6 +24,24 @@ import { Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/me")({
   component: MyProductPage,
+  head: () => ({
+    meta: [
+      { title: "My product roadmap — PM Radar" },
+      {
+        name: "description",
+        content:
+          "Track your own product's roadmap items alongside competitor releases.",
+      },
+      { name: "robots", content: "noindex" },
+      { property: "og:title", content: "My product roadmap — PM Radar" },
+      {
+        property: "og:description",
+        content: "Track your own product's roadmap items alongside competitor releases.",
+      },
+      { property: "og:url", content: "https://competitorradar.lovable.app/me" },
+    ],
+    links: [{ rel: "canonical", href: "https://competitorradar.lovable.app/me" }],
+  }),
 });
 
 function MyProductPage() {

@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /me
+Disallow: /api/
+
+Sitemap: https://competitorradar.lovable.app/sitemap.xml

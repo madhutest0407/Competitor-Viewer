@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SourcesRouteImport } from './routes/sources'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as MeRouteImport } from './routes/me'
 import { Route as GapsRouteImport } from './routes/gaps'
 import { Route as CompareRouteImport } from './routes/compare'
@@ -22,6 +23,11 @@ import { Route as ApiPublicSyncGoogleRouteImport } from './routes/api/public/syn
 const SourcesRoute = SourcesRouteImport.update({
   id: '/sources',
   path: '/sources',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MeRoute = MeRouteImport.update({
@@ -70,6 +76,7 @@ export interface FileRoutesByFullPath {
   '/compare': typeof CompareRoute
   '/gaps': typeof GapsRoute
   '/me': typeof MeRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/sources': typeof SourcesRoute
   '/api/ai/insights': typeof ApiAiInsightsRoute
   '/api/public/sync/google': typeof ApiPublicSyncGoogleRoute
@@ -81,6 +88,7 @@ export interface FileRoutesByTo {
   '/compare': typeof CompareRoute
   '/gaps': typeof GapsRoute
   '/me': typeof MeRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/sources': typeof SourcesRoute
   '/api/ai/insights': typeof ApiAiInsightsRoute
   '/api/public/sync/google': typeof ApiPublicSyncGoogleRoute
@@ -93,6 +101,7 @@ export interface FileRoutesById {
   '/compare': typeof CompareRoute
   '/gaps': typeof GapsRoute
   '/me': typeof MeRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/sources': typeof SourcesRoute
   '/api/ai/insights': typeof ApiAiInsightsRoute
   '/api/public/sync/google': typeof ApiPublicSyncGoogleRoute
@@ -106,6 +115,7 @@ export interface FileRouteTypes {
     | '/compare'
     | '/gaps'
     | '/me'
+    | '/sitemap.xml'
     | '/sources'
     | '/api/ai/insights'
     | '/api/public/sync/google'
@@ -117,6 +127,7 @@ export interface FileRouteTypes {
     | '/compare'
     | '/gaps'
     | '/me'
+    | '/sitemap.xml'
     | '/sources'
     | '/api/ai/insights'
     | '/api/public/sync/google'
@@ -128,6 +139,7 @@ export interface FileRouteTypes {
     | '/compare'
     | '/gaps'
     | '/me'
+    | '/sitemap.xml'
     | '/sources'
     | '/api/ai/insights'
     | '/api/public/sync/google'
@@ -140,6 +152,7 @@ export interface RootRouteChildren {
   CompareRoute: typeof CompareRoute
   GapsRoute: typeof GapsRoute
   MeRoute: typeof MeRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SourcesRoute: typeof SourcesRoute
   ApiAiInsightsRoute: typeof ApiAiInsightsRoute
   ApiPublicSyncGoogleRoute: typeof ApiPublicSyncGoogleRoute
@@ -154,6 +167,13 @@ declare module '@tanstack/react-router' {
       path: '/sources'
       fullPath: '/sources'
       preLoaderRoute: typeof SourcesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/me': {
@@ -220,6 +240,7 @@ const rootRouteChildren: RootRouteChildren = {
   CompareRoute: CompareRoute,
   GapsRoute: GapsRoute,
   MeRoute: MeRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   SourcesRoute: SourcesRoute,
   ApiAiInsightsRoute: ApiAiInsightsRoute,
   ApiPublicSyncGoogleRoute: ApiPublicSyncGoogleRoute,
@@ -229,13 +250,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
