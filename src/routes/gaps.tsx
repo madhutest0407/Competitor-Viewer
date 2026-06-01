@@ -15,6 +15,30 @@ import { useActiveProductIds } from "@/lib/products";
 
 export const Route = createFileRoute("/gaps")({
   component: GapsPage,
+  head: () => ({
+    meta: [
+      { title: "Gap analysis — PM Radar" },
+      {
+        name: "description",
+        content:
+          "Spot feature gaps between Google Workspace and Microsoft 365 calendar with AI-powered strategic recommendations.",
+      },
+      { property: "og:title", content: "Gap analysis — PM Radar" },
+      {
+        property: "og:description",
+        content:
+          "Spot feature gaps between Google Workspace and Microsoft 365 calendar.",
+      },
+      { property: "og:url", content: "https://competitorradar.lovable.app/gaps" },
+      { name: "twitter:title", content: "Gap analysis — PM Radar" },
+      {
+        name: "twitter:description",
+        content:
+          "Spot feature gaps between Google Workspace and Microsoft 365 calendar.",
+      },
+    ],
+    links: [{ rel: "canonical", href: "https://competitorradar.lovable.app/gaps" }],
+  }),
 });
 
 function GapsPage() {
