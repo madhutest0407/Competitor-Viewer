@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Filters, defaultFilters, type FilterState } from "@/components/Filters";
 import { applyFilters, quarterOf, quartersWindow, useReleases, type Release } from "@/lib/releases";
 import { ReleaseCard } from "@/components/ReleaseCard";
@@ -43,7 +43,6 @@ function TimelinePage() {
   const [selected, setSelected] = useState<Release | null>(null);
   const { data, isLoading } = useReleases();
   const { activeIds, products } = useActiveProductIds();
-  const qc = useQueryClient();
   const quarters = useMemo(quartersWindow, []);
   const currentQuarter = useMemo(() => {
     const now = new Date();
@@ -114,7 +113,6 @@ function TimelinePage() {
     staleTime: 1000 * 60 * 60,
     enabled: false,
   });
-  void qc;
 
   return (
     <div>
