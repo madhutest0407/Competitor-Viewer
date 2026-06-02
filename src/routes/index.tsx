@@ -112,12 +112,9 @@ function TimelinePage() {
       return json;
     },
     staleTime: 1000 * 60 * 60,
-    enabled: activeProducts.length > 0 && quarterReleases.length > 0,
+    enabled: false,
   });
-
-  useEffect(() => {
-    qc.invalidateQueries({ queryKey: ["ai_insights_timeline"] });
-  }, [activeIds, activeQuarter, qc]);
+  void qc;
 
   return (
     <div>
@@ -177,6 +174,8 @@ function TimelinePage() {
             insights={insightsQ.data?.insights}
             isLoading={insightsQ.isLoading}
             error={insightsQ.data?.error ?? null}
+            onGenerate={() => insightsQ.refetch()}
+            canGenerate={activeProducts.length > 0 && quarterReleases.length > 0}
           />
           {totalActive === 0 ? (
             <div className="rounded-md border border-dashed border-border p-12 text-center text-sm text-muted-foreground">
