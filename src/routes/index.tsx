@@ -172,7 +172,7 @@ function TimelinePage() {
           <AIInsightsSummary
             variant="timeline"
             insights={insightsQ.data?.insights}
-            isLoading={insightsQ.isLoading}
+            isLoading={insightsQ.isFetching}
             error={insightsQ.data?.error ?? null}
             onGenerate={() => insightsQ.refetch()}
             canGenerate={activeProducts.length > 0 && quarterReleases.length > 0}
