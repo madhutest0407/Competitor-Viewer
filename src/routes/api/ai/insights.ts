@@ -83,7 +83,23 @@ async function callLovableAI(prompt: string): Promise<AiResult> {
     };
     const text = json.choices?.[0]?.message?.content ?? "[]";
     const cleaned = text.replace(/```json|```/g, "").trim();
-    const parsed = JSON.parse(cleaned);
+    // Be tolerant of extra prose around the JSON array
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch {
+      const start = cleaned.indexOf("[");
+      const end = cleaned.lastIndexOf("]");
+      if (start !== -1 && end > start) {
+        try {
+          parsed = JSON.parse(cleaned.slice(start, end + 1));
+        } catch {
+          return { ok: true, insights: [] };
+        }
+      } else {
+        return { ok: true, insights: [] };
+      }
+    }
 
     if (!Array.isArray(parsed)) return { ok: true, insights: [] };
 
