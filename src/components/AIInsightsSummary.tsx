@@ -1,4 +1,6 @@
 import { AlertTriangle, Star, TrendingUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Sparkles } from "lucide-react";
 
 interface Insight {
   text: string;
@@ -10,6 +12,8 @@ interface AIInsightsSummaryProps {
   insights?: Insight[];
   isLoading?: boolean;
   error?: string | null;
+  onGenerate?: () => void;
+  canGenerate?: boolean;
 }
 
 export function AIInsightsSummary({
@@ -17,6 +21,8 @@ export function AIInsightsSummary({
   insights,
   isLoading,
   error,
+  onGenerate,
+  canGenerate = true,
 }: AIInsightsSummaryProps) {
   const title =
     variant === "timeline"
@@ -56,7 +62,25 @@ export function AIInsightsSummary({
   }
 
   if (!insights || insights.length === 0) {
-    return null;
+    if (!onGenerate) return null;
+    return (
+      <div className="mb-4 flex items-center justify-between gap-3 rounded-md border border-dashed border-border bg-card/40 p-4">
+        <div className="space-y-0.5">
+          <div className="text-sm font-semibold text-foreground">{title}</div>
+          <p className="text-xs text-muted-foreground">{subtitle}</p>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={onGenerate}
+          disabled={!canGenerate}
+          className="h-8 gap-1.5 text-xs"
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+          Generate
+        </Button>
+      </div>
+    );
   }
 
   const getIcon = (type: string) => {

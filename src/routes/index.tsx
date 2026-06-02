@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Filters, defaultFilters, type FilterState } from "@/components/Filters";
 import { applyFilters, quarterOf, quartersWindow, useReleases, type Release } from "@/lib/releases";
 import { ReleaseCard } from "@/components/ReleaseCard";
@@ -43,7 +43,6 @@ function TimelinePage() {
   const [selected, setSelected] = useState<Release | null>(null);
   const { data, isLoading } = useReleases();
   const { activeIds, products } = useActiveProductIds();
-  const qc = useQueryClient();
   const quarters = useMemo(quartersWindow, []);
   const currentQuarter = useMemo(() => {
     const now = new Date();
@@ -112,12 +111,8 @@ function TimelinePage() {
       return json;
     },
     staleTime: 1000 * 60 * 60,
-    enabled: activeProducts.length > 0 && quarterReleases.length > 0,
+    enabled: false,
   });
-
-  useEffect(() => {
-    qc.invalidateQueries({ queryKey: ["ai_insights_timeline"] });
-  }, [activeIds, activeQuarter, qc]);
 
   return (
     <div>
@@ -175,8 +170,10 @@ function TimelinePage() {
           <AIInsightsSummary
             variant="timeline"
             insights={insightsQ.data?.insights}
-            isLoading={insightsQ.isLoading}
+            isLoading={insightsQ.isFetching}
             error={insightsQ.data?.error ?? null}
+            onGenerate={() => insightsQ.refetch()}
+            canGenerate={activeProducts.length > 0 && quarterReleases.length > 0}
           />
           {totalActive === 0 ? (
             <div className="rounded-md border border-dashed border-border p-12 text-center text-sm text-muted-foreground">

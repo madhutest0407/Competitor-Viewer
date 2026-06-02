@@ -84,7 +84,6 @@ function GapsPage() {
     return m;
   }, [notesQ.data]);
 
-  const qc = useQueryClient();
   const allReleases = useMemo(() => {
     return (data ?? []).map((r) => ({
       title: r.title,
@@ -117,12 +116,8 @@ function GapsPage() {
       return json;
     },
     staleTime: 1000 * 60 * 60,
-    enabled: activeProducts.length > 0 && allReleases.length > 0,
+    enabled: false,
   });
-
-  useEffect(() => {
-    qc.invalidateQueries({ queryKey: ["ai_insights_gaps"] });
-  }, [activeIds, qc]);
 
   return (
     <div>
@@ -137,8 +132,10 @@ function GapsPage() {
         <AIInsightsSummary
           variant="gaps"
           insights={insightsQ.data?.insights}
-          isLoading={insightsQ.isLoading}
+          isLoading={insightsQ.isFetching}
           error={insightsQ.data?.error ?? null}
+          onGenerate={() => insightsQ.refetch()}
+          canGenerate={activeProducts.length > 0 && allReleases.length > 0}
         />
         <table className="w-full border-collapse text-left text-xs">
           <thead>
