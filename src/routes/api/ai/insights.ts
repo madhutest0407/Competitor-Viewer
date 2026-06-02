@@ -55,11 +55,12 @@ async function callLovableAI(prompt: string): Promise<AiResult> {
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
+        max_tokens: 800,
         messages: [
           {
             role: "system",
             content:
-              "You are a product strategy analyst. Output ONLY valid JSON. No prose, no markdown, no extra text.",
+              "You are a product strategy analyst. Output ONLY a valid JSON array of at most 3 objects. Each object: { \"text\": string (one concise sentence, max 25 words), \"type\": \"threat\" | \"opportunity\" | \"trend\" }. No prose, no markdown fences, no extra text.",
           },
           { role: "user", content: prompt },
         ],
