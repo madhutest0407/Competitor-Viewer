@@ -6,6 +6,9 @@ import { toast } from "sonner";
 import { RefreshCw, ExternalLink, Check, Plus } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useActiveProductIds, MAX_ACTIVE } from "@/lib/products";
+import { useAuth } from "@/lib/auth-context";
+import { AuthDialog } from "@/components/AuthDialog";
+import { useState } from "react";
 
 export const Route = createFileRoute("/sources")({
   component: SourcesPage,
@@ -36,6 +39,8 @@ export const Route = createFileRoute("/sources")({
 function SourcesPage() {
   const qc = useQueryClient();
   const { activeIds, products, toggle } = useActiveProductIds();
+  const { user } = useAuth();
+  const [authOpen, setAuthOpen] = useState(false);
   const runsQ = useQuery({
     queryKey: ["sync_runs"],
     queryFn: async () => {
@@ -130,7 +135,14 @@ function SourcesPage() {
                 </Button>
                 <Button
                   size="sm"
-                  onClick={() => sync.mutate(p.id)}
+                  onClick={() => {
+                    if (!user) {
+                      setAuthOpen(true);
+                      toast.message("Sign in to trigger a sync");
+                      return;
+                    }
+                    sync.mutate(p.id);
+                  }}
                   disabled={sync.isPending}
                   className="h-8 gap-1.5 text-xs"
                 >
@@ -177,6 +189,7 @@ function SourcesPage() {
           </table>
         </div>
       </div>
+      <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />
     </div>
   );
 }
