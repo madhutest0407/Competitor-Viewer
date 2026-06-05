@@ -223,10 +223,10 @@ function Lane({
   const visible = expanded ? items : items.slice(0, PAGE);
   return (
     <div className="rounded-md border border-border bg-card/40 p-3">
-      <div className="mb-2 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-        <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
+      <div className="mb-3 flex items-center gap-2 text-base font-bold text-foreground">
+        <span className="inline-block h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
         {label}
-        <span className="ml-auto normal-case tracking-normal text-muted-foreground/80">
+        <span className="ml-auto text-xs font-medium text-muted-foreground">
           {items.length}
         </span>
       </div>

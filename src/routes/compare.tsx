@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { Filters, defaultFilters, type FilterState } from "@/components/Filters";
 import { applyFilters, useReleases, type Release } from "@/lib/releases";
 import { CATEGORIES } from "@/lib/categories";
@@ -128,11 +129,17 @@ function ComparePage() {
 }
 
 function RowList({ items, onSelect }: { items: Release[]; onSelect: (r: Release) => void }) {
+  const [expanded, setExpanded] = useState(false);
+
   if (items.length === 0)
     return <span className="text-[11px] text-muted-foreground/60">—</span>;
+
+  const visibleItems = expanded ? items : items.slice(0, 8);
+  const hasMore = items.length > 8;
+
   return (
     <ul className="space-y-1">
-      {items.slice(0, 8).map((r) => (
+      {visibleItems.map((r) => (
         <li key={r.id}>
           <button
             onClick={() => onSelect(r)}
@@ -143,8 +150,18 @@ function RowList({ items, onSelect }: { items: Release[]; onSelect: (r: Release)
           </button>
         </li>
       ))}
-      {items.length > 8 && (
-        <li className="text-[10px] text-muted-foreground">+{items.length - 8} more</li>
+      {hasMore && (
+        <li>
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="flex items-center gap-1 text-left text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {expanded ? `Show less` : `+${items.length - 8} more`}
+            <ChevronDown
+              className={`h-3 w-3 transition-transform ${expanded ? "rotate-180" : ""}`}
+            />
+          </button>
+        </li>
       )}
     </ul>
   );
