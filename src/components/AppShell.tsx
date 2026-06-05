@@ -11,9 +11,6 @@ import {
   Moon,
   Monitor,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { useAuth } from "@/lib/auth-context";
-import { AuthDialog } from "./AuthDialog";
 import { Toaster } from "@/components/ui/sonner";
 import { useTheme, type Theme } from "@/lib/theme";
 
@@ -21,13 +18,10 @@ const NAV = [
   { to: "/", label: "Timeline", icon: LayoutDashboard },
   { to: "/compare", label: "Compare", icon: GitCompare },
   { to: "/gaps", label: "Gaps", icon: Target },
-  { to: "/me", label: "My product", icon: User, auth: true },
   { to: "/sources", label: "Sources", icon: Activity },
 ] as const;
 
 export function AppShell() {
-  const { user, signOut } = useAuth();
-  const [authOpen, setAuthOpen] = useState(false);
   const loc = useLocation();
   const { theme, resolved, setTheme } = useTheme();
 
@@ -82,33 +76,11 @@ export function AppShell() {
               </button>
             ))}
           </div>
-          {user ? (
-            <div className="space-y-1.5">
-              <div className="truncate text-sidebar-foreground/70">{user.email}</div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 w-full justify-start px-2 text-xs"
-                onClick={signOut}
-              >
-                Sign out
-              </Button>
-            </div>
-          ) : (
-            <Button
-              size="sm"
-              className="h-7 w-full text-xs"
-              onClick={() => setAuthOpen(true)}
-            >
-              Sign in
-            </Button>
-          )}
         </div>
       </aside>
       <main className="flex-1 overflow-x-hidden">
         <Outlet />
       </main>
-      <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />
       <Toaster theme={resolved} position="bottom-right" />
     </div>
   );

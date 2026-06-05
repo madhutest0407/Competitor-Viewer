@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/auth-context";
 
 export type Product = {
   id: string;
@@ -29,21 +28,6 @@ export function useProducts() {
       return (data ?? []) as Product[];
     },
     staleTime: 5 * 60 * 1000,
-  });
-}
-
-export function useUserProductPrefs() {
-  const { user } = useAuth();
-  return useQuery({
-    queryKey: ["user_product_prefs", user?.id ?? null],
-    queryFn: async () => {
-      if (!user) return [] as { product_id: string; enabled: boolean }[];
-      const { data, error } = await supabase
-        .from("user_product_prefs")
-        .select("product_id, enabled");
-      if (error) throw new Error(error.message);
-      return data ?? [];
-    },
   });
 }
 
@@ -89,63 +73,36 @@ function snapshotAnon() {
 
 /**
  * Active products: returns the set of product ids currently active for the
- * viewer. When authenticated, prefs are persisted to `user_product_prefs`
- * (and we toggle directly via supabase). When anonymous, prefs persist in
- * localStorage. `default_enabled` products are included on first load.
+ * viewer. Preferences are persisted in localStorage. `default_enabled`
+ * products are included on first load.
  */
 export function useActiveProductIds() {
-  const { user } = useAuth();
   const productsQ = useProducts();
-  const prefsQ = useUserProductPrefs();
-  const anonIds = useSyncExternalStore(subscribeAnon, snapshotAnon, snapshotAnon);
+  const activeIds = useSyncExternalStore(subscribeAnon, snapshotAnon, snapshotAnon);
 
-  // Seed anon defaults once products load and nothing has been picked yet.
+  // Seed defaults once products load and nothing has been picked yet.
   useEffect(() => {
-    if (user || !productsQ.data) return;
+    if (!productsQ.data) return;
     if (typeof window === "undefined") return;
     if (window.localStorage.getItem(LS_KEY) !== null) return;
     setAnonStore(new Set(productsQ.data.filter((p) => p.default_enabled).map((p) => p.id)));
-  }, [user, productsQ.data]);
-
-  let active: Set<string> = new Set();
-  if (user) {
-    if (prefsQ.data && productsQ.data) {
-      // Start from defaults, override with user pref rows.
-      const map = new Map<string, boolean>();
-      for (const p of productsQ.data) map.set(p.id, p.default_enabled);
-      for (const pref of prefsQ.data) map.set(pref.product_id, pref.enabled);
-      active = new Set([...map.entries()].filter(([, v]) => v).map(([k]) => k));
-    }
-  } else {
-    active = anonIds;
-  }
+  }, [productsQ.data]);
 
   const toggle = async (productId: string, next: boolean) => {
-    if (next && active.size >= MAX_ACTIVE && !active.has(productId)) {
+    if (next && activeIds.size >= MAX_ACTIVE && !activeIds.has(productId)) {
       return { ok: false as const, reason: "max" as const };
     }
-    if (user) {
-      const { error } = await supabase
-        .from("user_product_prefs")
-        .upsert(
-          { user_id: user.id, product_id: productId, enabled: next },
-          { onConflict: "user_id,product_id" },
-        );
-      if (error) return { ok: false as const, reason: error.message };
-      await prefsQ.refetch();
-    } else {
-      const nextSet = new Set(getAnonStore());
-      if (next) nextSet.add(productId);
-      else nextSet.delete(productId);
-      setAnonStore(nextSet);
-    }
+    const nextSet = new Set(getAnonStore());
+    if (next) nextSet.add(productId);
+    else nextSet.delete(productId);
+    setAnonStore(nextSet);
     return { ok: true as const };
   };
 
   return {
-    activeIds: active,
+    activeIds,
     products: productsQ.data ?? [],
-    isLoading: productsQ.isLoading || (!!user && prefsQ.isLoading),
+    isLoading: productsQ.isLoading,
     toggle,
   };
 }

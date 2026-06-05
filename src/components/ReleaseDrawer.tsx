@@ -1,6 +1,7 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import type { Release } from "@/lib/releases";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ExternalLink } from "lucide-react";
 
 export function ReleaseDrawer({
@@ -27,34 +28,30 @@ export function ReleaseDrawer({
               )}
             </div>
             {release.summary && (
-              <div className="mt-4 text-sm text-muted-foreground">{release.summary}</div>
-            )}
-            {release.description && release.description !== release.summary && (
-              <div className="mt-4 whitespace-pre-wrap text-sm leading-relaxed">
-                {release.description.slice(0, 4000)}
-              </div>
+              <div className="mt-5 text-sm leading-relaxed text-muted-foreground">{release.summary}</div>
             )}
             {(release.audience?.length ?? 0) > 0 && (
-              <div className="mt-4">
-                <div className="text-xs font-medium text-muted-foreground">Audience</div>
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {release.audience!.map((a) => (
-                    <Badge key={a} variant="secondary" className="text-[10px]">
-                      {a}
-                    </Badge>
-                  ))}
+              <div className="mt-5">
+                <div className="text-xs font-medium text-muted-foreground">
+                  Audience: {release.audience!.length} {release.audience!.length === 1 ? "group" : "groups"}
                 </div>
               </div>
             )}
             {release.source_url && /^https?:\/\//i.test(release.source_url) && (
-              <a
-                href={release.source_url}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-6 inline-flex items-center gap-1 text-xs text-primary hover:underline"
+              <Button
+                asChild
+                size="sm"
+                className="mt-6 w-full"
               >
-                Open source <ExternalLink className="h-3 w-3" />
-              </a>
+                <a
+                  href={release.source_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center gap-1.5"
+                >
+                  View full details <ExternalLink className="h-4 w-4" />
+                </a>
+              </Button>
             )}
           </>
         )}

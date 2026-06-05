@@ -18,7 +18,7 @@ export function ReleaseCard({
   return (
     <button
       onClick={onClick}
-      className="group block w-full rounded-md border border-border bg-card p-2.5 text-left transition-colors hover:bg-accent"
+      className="group block w-full cursor-pointer rounded-md border border-border bg-card p-2.5 text-left transition-all hover:border-primary hover:shadow-md hover:scale-105"
     >
       <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide">
         <span

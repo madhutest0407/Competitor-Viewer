@@ -123,32 +123,37 @@ function TimelinePage() {
         </p>
       </header>
       <ActiveProductsBar />
-      <Filters value={filters} onChange={setFilters} />
-      <div className="flex items-center gap-1 overflow-x-auto border-b border-border bg-background/60 px-6 py-2">
-        {quarters.map((q) => {
-          const count = activeProducts.reduce(
-            (acc, p) => acc + (grouped[q]?.[p.id]?.length ?? 0),
-            0,
-          );
-          const isActive = q === activeQuarter;
-          const isCurrent = q === currentQuarter;
-          return (
-            <button
-              key={q}
-              onClick={() => setActiveQuarter(q)}
-              className={`shrink-0 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors ${
-                isActive
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
-              }`}
-            >
-              {q}
-              {isCurrent && !isActive && <span className="ml-1 text-primary">•</span>}
-              <span className="ml-1.5 opacity-70">{count}</span>
-            </button>
-          );
-        })}
+      <div className="border-b border-border bg-background/60">
+        <div className="flex items-center gap-1 overflow-x-auto px-6 py-2">
+          <span className="shrink-0 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            Quarter
+          </span>
+          {quarters.map((q) => {
+            const count = activeProducts.reduce(
+              (acc, p) => acc + (grouped[q]?.[p.id]?.length ?? 0),
+              0,
+            );
+            const isActive = q === activeQuarter;
+            const isCurrent = q === currentQuarter;
+            return (
+              <button
+                key={q}
+                onClick={() => setActiveQuarter(q)}
+                className={`shrink-0 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                  isActive
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                }`}
+              >
+                {q}
+                {isCurrent && !isActive && <span className="ml-1 text-primary">•</span>}
+                <span className="ml-1.5 opacity-70">{count}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
+      <Filters value={filters} onChange={setFilters} />
       {isLoading ? (
         <div className="p-8 text-sm text-muted-foreground">Loading releases…</div>
       ) : activeProducts.length === 0 ? (

@@ -1,6 +1,6 @@
 import { Input } from "@/components/ui/input";
 import { Toggle } from "@/components/ui/toggle";
-import { Search } from "lucide-react";
+import { Search, Check } from "lucide-react";
 import { CATEGORIES, STATUSES } from "@/lib/categories";
 
 export type FilterState = {
@@ -40,19 +40,25 @@ export function Filters({
         />
       </div>
       <div className="flex flex-wrap gap-1">
-        {STATUSES.map((s) => (
-          <Toggle
-            key={s}
-            size="sm"
-            pressed={value.statuses.has(s)}
-            onPressedChange={() =>
-              onChange({ ...value, statuses: toggleSet(value.statuses, s) })
-            }
-            className="h-7 px-2 text-xs"
-          >
-            {s}
-          </Toggle>
-        ))}
+        {STATUSES.map((s) => {
+          const isSelected = value.statuses.has(s);
+          return (
+            <button
+              key={s}
+              onClick={() =>
+                onChange({ ...value, statuses: toggleSet(value.statuses, s) })
+              }
+              className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                isSelected
+                  ? "bg-primary text-primary-foreground"
+                  : "border border-border bg-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {isSelected && <Check className="h-3.5 w-3.5" />}
+              {s}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
