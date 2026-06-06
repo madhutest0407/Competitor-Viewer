@@ -74,8 +74,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "PM Radar — Google & Microsoft calendar releases" },
-      { name: "description", content: "Timeline, board and gap analysis of Google Workspace and Microsoft 365 calendar releases for product managers." },
+      { title: "PM Radar — Product Updates Hub" },
+      { name: "description", content: "All product updates in one place. Track product launches and releases from Google Workspace, Microsoft 365, and other SaaS platforms." },
       { name: "author", content: "Lovable" },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "PM Radar" },
@@ -111,7 +111,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           name: "PM Radar",
           url: "https://competitorradar.lovable.app",
           description:
-            "Timeline, board and gap analysis of Google Workspace and Microsoft 365 calendar releases for product managers.",
+            "All product updates in one place. Track product launches and releases from Google Workspace, Microsoft 365, and other SaaS platforms.",
         }),
       },
     ],

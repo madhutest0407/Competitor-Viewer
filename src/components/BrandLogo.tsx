@@ -1,0 +1,48 @@
+interface BrandLogoProps {
+  size?: "sm" | "md" | "lg";
+  showText?: boolean;
+  className?: string;
+}
+
+const sizeMap = {
+  sm: 16,
+  md: 24,
+  lg: 32,
+};
+
+export function BrandLogo({ size = "md", showText = false, className = "" }: BrandLogoProps) {
+  const pixelSize = sizeMap[size];
+
+  return (
+    <div className={`flex items-center gap-2 ${className}`}>
+      <svg
+        width={pixelSize}
+        height={pixelSize}
+        viewBox="0 0 32 32"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        {/* Background circle */}
+        <circle cx="16" cy="16" r="15" fill="#4335E8" />
+
+        {/* Magnifying glass outer ring */}
+        <circle cx="13" cy="13" r="8.5" fill="none" stroke="white" strokeWidth="1.8" />
+
+        {/* Inner search indicator dots */}
+        <circle cx="11" cy="11" r="1.2" fill="white" />
+        <circle cx="13" cy="14" r="1" fill="white" opacity="0.7" />
+        <circle cx="15" cy="12" r="0.9" fill="white" opacity="0.6" />
+
+        {/* Handle/stem of magnifying glass */}
+        <line x1="19" y1="19" x2="25" y2="25" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+
+        {/* Subtle inner ring detail */}
+        <circle cx="13" cy="13" r="5.5" fill="none" stroke="white" strokeWidth="0.8" opacity="0.5" />
+      </svg>
+
+      {showText && (
+        <span className="font-mono font-bold tracking-tight text-foreground">PM Radar</span>
+      )}
+    </div>
+  );
+}

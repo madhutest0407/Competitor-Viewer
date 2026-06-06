@@ -93,9 +93,9 @@ function SourcesPage() {
   return (
     <div>
       <header className="border-b border-border px-6 py-4">
-        <h1 className="text-lg font-semibold tracking-tight">Sources</h1>
+        <h1 className="text-lg font-semibold tracking-tight">Product Sources</h1>
         <p className="text-xs text-muted-foreground">
-          Public data feeds — no account needed. Enable up to {MAX_ACTIVE} products to compare; trigger a sync per product (rate-limited).
+          Public product updates — no account needed. Monitor up to {MAX_ACTIVE} products; trigger a sync per product (rate-limited).
         </p>
       </header>
       <div className="space-y-3 p-4">

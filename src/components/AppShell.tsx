@@ -1,7 +1,6 @@
 import { Link, Outlet, useLocation } from "@tanstack/react-router";
 import { useState } from "react";
 import {
-  Calendar,
   LayoutDashboard,
   GitCompare,
   Activity,
@@ -11,6 +10,7 @@ import {
 } from "lucide-react";
 import { Toaster } from "@/components/ui/sonner";
 import { useTheme, type Theme } from "@/lib/theme";
+import { BrandLogo } from "@/components/BrandLogo";
 
 const NAV = [
   { to: "/", label: "Timeline", icon: LayoutDashboard },
@@ -26,8 +26,7 @@ export function AppShell() {
     <div className="flex min-h-screen bg-background text-foreground">
       <aside className="hidden w-56 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
         <div className="flex items-center gap-2 px-4 py-4">
-          <Calendar className="h-5 w-5 text-primary" />
-          <span className="text-sm tracking-tight font-mono font-bold">PM Radar</span>
+          <BrandLogo size="md" />
         </div>
         <nav className="flex-1 space-y-0.5 px-2">
           {NAV.map((n) => {

@@ -105,7 +105,7 @@ function ComparePage() {
     <div>
       <header className="border-b border-border px-6 py-4">
         <h1 className="text-lg font-semibold tracking-tight">Compare</h1>
-        <p className="text-xs text-muted-foreground">Side-by-side by category.</p>
+        <p className="text-xs text-muted-foreground">Side-by-side comparison of product updates by feature category.</p>
       </header>
       <ActiveProductsBar />
       <Filters value={filters} onChange={setFilters} />

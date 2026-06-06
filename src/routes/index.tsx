@@ -119,7 +119,7 @@ function TimelinePage() {
       <header className="border-b border-border px-6 py-4">
         <h1 className="text-lg font-semibold tracking-tight">Timeline</h1>
         <p className="text-xs text-muted-foreground">
-          Browse one quarter at a time. Pick a quarter below to focus.
+          View product updates by quarter. Track launches and releases across all your monitored products.
         </p>
       </header>
       <ActiveProductsBar />

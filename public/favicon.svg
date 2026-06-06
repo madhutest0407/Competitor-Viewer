@@ -1,24 +1,18 @@
 <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
   <!-- Background circle -->
-  <circle cx="16" cy="16" r="15" fill="#0066FF" opacity="0.95"/>
+  <circle cx="16" cy="16" r="15" fill="#4335E8"/>
 
-  <!-- Calendar grid -->
-  <rect x="6" y="7" width="20" height="18" rx="2" fill="none" stroke="white" stroke-width="1.5"/>
+  <!-- Magnifying glass outer ring (handle area) -->
+  <circle cx="13" cy="13" r="8.5" fill="none" stroke="white" stroke-width="1.8"/>
 
-  <!-- Calendar top bar -->
-  <rect x="6" y="7" width="20" height="4" rx="2" fill="white" opacity="0.3"/>
+  <!-- Inner search indicator dots (representing aggregated data) -->
+  <circle cx="11" cy="11" r="1.2" fill="white"/>
+  <circle cx="13" cy="14" r="1" fill="white" opacity="0.7"/>
+  <circle cx="15" cy="12" r="0.9" fill="white" opacity="0.6"/>
 
-  <!-- Calendar grid lines -->
-  <line x1="6" y1="12" x2="26" y2="12" stroke="white" stroke-width="0.8" opacity="0.4"/>
-  <line x1="6" y1="17" x2="26" y2="17" stroke="white" stroke-width="0.8" opacity="0.4"/>
-  <line x1="12" y1="12" x2="12" y2="25" stroke="white" stroke-width="0.8" opacity="0.4"/>
-  <line x1="18" y1="12" x2="18" y2="25" stroke="white" stroke-width="0.8" opacity="0.4"/>
-  <line x1="24" y1="12" x2="24" y2="25" stroke="white" stroke-width="0.8" opacity="0.4"/>
+  <!-- Handle/stem of magnifying glass -->
+  <line x1="19" y1="19" x2="25" y2="25" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
 
-  <!-- Center radar dot (highlight) -->
-  <circle cx="16" cy="20" r="1.5" fill="white"/>
-
-  <!-- Radar rings (subtle) -->
-  <circle cx="16" cy="20" r="3" fill="none" stroke="white" stroke-width="0.7" opacity="0.5"/>
-  <circle cx="16" cy="20" r="5" fill="none" stroke="white" stroke-width="0.7" opacity="0.3"/>
+  <!-- Subtle inner ring (detail) -->
+  <circle cx="13" cy="13" r="5.5" fill="none" stroke="white" stroke-width="0.8" opacity="0.5"/>
 </svg>
