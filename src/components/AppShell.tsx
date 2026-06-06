@@ -26,7 +26,7 @@ export function AppShell() {
     <div className="flex min-h-screen bg-background text-foreground">
       <aside className="hidden w-56 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
         <div className="flex items-center gap-2 px-4 py-4">
-          <BrandLogo size="md" />
+          <BrandLogo size="md" showText={true} />
         </div>
         <nav className="flex-1 space-y-0.5 px-2">
           {NAV.map((n) => {
