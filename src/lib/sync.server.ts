@@ -51,37 +51,47 @@ function stripHtml(html: string): string {
 
 /**
  * Filter blog posts to include only feature releases, enhancements, and new product announcements.
- * Excludes: tips, guides, news, company updates, marketing content, etc.
+ * Stricter filtering - requires clear feature/enhancement/announcement indicators.
  */
 function isRelevantBlogPost(title: string, description: string): boolean {
   const combined = `${title} ${description}`.toLowerCase();
+  const titleLower = title.toLowerCase();
 
-  // Keywords that indicate this is a feature/enhancement/product announcement
-  const relevantKeywords = [
-    "feature", "new feature", "launch", "launching", "released",
-    "enhancement", "improved", "improve", "capability",
-    "announcement", "announcing", "introducing", "introducing new",
-    "product release", "new product", "now available",
-    "update", "upgrade", "rolling out",
-  ];
-
-  // Keywords to exclude (company news, marketing, etc)
+  // ALWAYS EXCLUDE these - strong indicators of non-feature content
   const excludeKeywords = [
     "blog", "news", "press release", "interview",
     "company update", "company news", "thought leadership",
-    "tip", "tips", "guide", "how to", "tutorial",
-    "case study", "customer story", "webinar",
-    "event", "conference", "summit", "security fix",
-    "bug fix", "bug fixes", "patch", "hotfix",
+    "tip", "tips", "tricks", "guide", "how to", "how-to", "tutorial", "guide", "walkthrough",
+    "case study", "customer story", "webinar", "podcast", "video",
+    "event", "conference", "summit", "trade show", "speaking",
+    "security fix", "bug fix", "bug fixes", "patch", "hotfix", "vulnerability",
+    "job posting", "careers", "hiring", "we're hiring",
+    "report", "study", "benchmark", "survey", "research",
+    "partnership", "acquisition", "funding", "investment",
   ];
 
-  // Check if any exclude keywords match
   if (excludeKeywords.some(keyword => combined.includes(keyword))) {
     return false;
   }
 
-  // Check if any relevant keywords match
-  return relevantKeywords.some(keyword => combined.includes(keyword));
+  // MUST contain at least one of these strong feature indicators
+  const featureKeywords = [
+    "new feature", "introducing", "launch", "launched", "releasing",
+    "available now", "now available", "coming soon",
+    "enhancement", "improved", "capability", "functionality",
+    "product update", "product release",
+  ];
+
+  const hasFeatureKeyword = featureKeywords.some(keyword => combined.includes(keyword));
+
+  // Additional check: title should suggest it's about a feature/update
+  // Exclude posts that are clearly just announcements with no product content
+  const titleIndicatesFeature = /^(new|introducing|announcing|available|launching?|released?)[\s\-:]/i.test(titleLower) ||
+    /[\s\-:](new|feature|update|release|available|launch|announcement)$/i.test(titleLower) ||
+    /feature|product|release|launch|new|available/i.test(titleLower);
+
+  // Must have feature keyword AND title must suggest it's about a feature
+  return hasFeatureKeyword && titleIndicatesFeature;
 }
 
 function safeHttpUrl(u: string | null | undefined): string | null {
