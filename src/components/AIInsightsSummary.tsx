@@ -8,7 +8,7 @@ interface Insight {
 }
 
 interface AIInsightsSummaryProps {
-  variant: "timeline" | "gaps";
+  variant: "timeline" | "gaps" | "compare";
   insights?: Insight[];
   isLoading?: boolean;
   error?: string | null;
@@ -27,11 +27,15 @@ export function AIInsightsSummary({
   const title =
     variant === "timeline"
       ? "Market Briefing"
-      : "Strategic Recommendations";
+      : variant === "compare"
+        ? "Category Insights"
+        : "Strategic Recommendations";
   const subtitle =
     variant === "timeline"
       ? "Key competitive themes this quarter"
-      : "Priorities based on competitor activity";
+      : variant === "compare"
+        ? "Feature parity analysis across categories"
+        : "Priorities based on competitor activity";
 
   if (isLoading) {
     return (

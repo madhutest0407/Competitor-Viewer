@@ -8,8 +8,8 @@ interface InsightRequest {
     status: string;
     source: string;
   }>;
-  quarter: string;
-  variant: "timeline" | "gaps";
+  quarter?: string;
+  variant: "timeline" | "gaps" | "compare";
 }
 
 interface Insight {
@@ -203,6 +203,52 @@ Provide 2-3 recommendations (exactly one sentence each) for:
 Return JSON array with objects: { text: "recommendation (one sentence)", type: "threat" | "opportunity" | "trend" }`;
 }
 
+function buildComparePrompt(
+  products: Array<{ name: string }>,
+  releases: Array<{
+    title: string;
+    category: string;
+    source: string;
+  }>,
+): string {
+  const categoryStats: Record<string, Record<string, number>> = {};
+
+  for (const r of releases) {
+    if (!categoryStats[r.category]) categoryStats[r.category] = {};
+    categoryStats[r.category][r.source] = (categoryStats[r.category][r.source] ?? 0) + 1;
+  }
+
+  const topCategories = Object.entries(categoryStats)
+    .sort((a, b) => b[1] && Object.keys(b[1]).length - (a[1] && Object.keys(a[1]).length))
+    .slice(0, 5)
+    .map(([cat]) => cat)
+    .join(", ");
+
+  const parityAnalysis = Object.entries(categoryStats)
+    .map(([cat, sources]) => {
+      const participating = Object.keys(sources).length;
+      const total = products.length;
+      if (participating === total) return `${cat} (all)`;
+      if (participating === 1) return `${cat} (unique)`;
+      return `${cat} (${participating}/${total})`;
+    })
+    .slice(0, 5)
+    .join(", ");
+
+  return `Analyze competitive feature parity and provide 2-3 strategic category insights.
+
+Products: ${products.map((p) => p.name).join(", ")}
+Active feature categories: ${topCategories || "None"}
+Category participation: ${parityAnalysis || "None"}
+
+Provide 2-3 insights (exactly one sentence each) about:
+- Feature parity patterns (which categories are competitive across products)
+- Differentiation opportunities (unique features by product)
+- Market positioning (where competitors are investing most)
+
+Return JSON array with objects: { text: "insight (one sentence)", type: "threat" | "opportunity" | "trend" }`;
+}
+
 export const Route = createFileRoute("/api/ai/insights")({
   server: {
     handlers: {
@@ -210,7 +256,7 @@ export const Route = createFileRoute("/api/ai/insights")({
         const body = (await request.json()) as InsightRequest;
 
         const { products, releases, quarter, variant } = body;
-        if (!variant || !["timeline", "gaps"].includes(variant)) {
+        if (!variant || !["timeline", "gaps", "compare"].includes(variant)) {
           return Response.json(
             { error: "Missing or invalid variant" },
             { status: 400 },
@@ -227,7 +273,9 @@ export const Route = createFileRoute("/api/ai/insights")({
 
         let prompt: string;
         if (variant === "timeline") {
-          prompt = buildTimelinePrompt(products, releases, quarter);
+          prompt = buildTimelinePrompt(products, releases, quarter || "");
+        } else if (variant === "compare") {
+          prompt = buildComparePrompt(products, releases);
         } else {
           prompt = buildGapsPrompt(releases, products);
         }
