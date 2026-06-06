@@ -57,7 +57,11 @@ function SourcesPage() {
         method: "POST",
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+      if (!res.ok) {
+        const error = new Error(json.error ?? `HTTP ${res.status}`);
+        (error as any).rateLimited = json.rateLimited ?? false;
+        throw error;
+      }
       return json as { upserted: number };
     },
     onSuccess: (r) => {
@@ -65,7 +69,15 @@ function SourcesPage() {
       qc.invalidateQueries({ queryKey: ["releases"] });
       qc.invalidateQueries({ queryKey: ["sync_runs"] });
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Sync failed"),
+    onError: (e) => {
+      const message = e instanceof Error ? e.message : "Sync failed";
+      const isRateLimited = (e as any).rateLimited;
+      if (isRateLimited) {
+        toast.error(`Rate limited: ${message}`);
+      } else {
+        toast.error(message);
+      }
+    },
   });
 
   function lastRun(source: string) {

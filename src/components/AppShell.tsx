@@ -4,8 +4,6 @@ import {
   Calendar,
   LayoutDashboard,
   GitCompare,
-  Target,
-  User,
   Activity,
   Sun,
   Moon,
@@ -17,7 +15,6 @@ import { useTheme, type Theme } from "@/lib/theme";
 const NAV = [
   { to: "/", label: "Timeline", icon: LayoutDashboard },
   { to: "/compare", label: "Compare", icon: GitCompare },
-  { to: "/gaps", label: "Gaps", icon: Target },
   { to: "/sources", label: "Sources", icon: Activity },
 ] as const;
 
@@ -34,7 +31,6 @@ export function AppShell() {
         </div>
         <nav className="flex-1 space-y-0.5 px-2">
           {NAV.map((n) => {
-            if ("auth" in n && n.auth && !user) return null;
             const Icon = n.icon;
             const active = loc.pathname === n.to;
             return (

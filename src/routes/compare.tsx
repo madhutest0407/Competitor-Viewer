@@ -1,11 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { ChevronDown } from "lucide-react";
 import { Filters, defaultFilters, type FilterState } from "@/components/Filters";
 import { applyFilters, useReleases, type Release } from "@/lib/releases";
 import { CATEGORIES } from "@/lib/categories";
 import { ReleaseDrawer } from "@/components/ReleaseDrawer";
 import { ActiveProductsBar } from "@/components/ActiveProductsBar";
+import { AIInsightsSummary } from "@/components/AIInsightsSummary";
 import { useActiveProductIds } from "@/lib/products";
 
 export const Route = createFileRoute("/compare")({
@@ -65,6 +67,40 @@ function ComparePage() {
     return m;
   }, [filtered, activeProducts]);
 
+  const compareReleases = useMemo(() => {
+    return filtered.map((r) => ({
+      title: r.title,
+      category: r.category ?? "Other",
+      status: r.status ?? "Unknown",
+      source: r.source,
+    }));
+  }, [filtered]);
+
+  const insightsQ = useQuery({
+    queryKey: ["ai_insights_compare", Array.from(activeIds)],
+    queryFn: async () => {
+      if (activeProducts.length === 0 || compareReleases.length === 0) {
+        return { insights: [] };
+      }
+      const { authedFetch } = await import("@/lib/authed-fetch");
+      const res = await authedFetch("/api/ai/insights", {
+        method: "POST",
+        body: JSON.stringify({
+          products: activeProducts.map((p) => ({ name: p.name, color: p.color })),
+          releases: compareReleases,
+          variant: "compare",
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return { insights: [], error: json.error ?? `HTTP ${res.status}` };
+      }
+      return json;
+    },
+    staleTime: 1000 * 60 * 60,
+    enabled: false,
+  });
+
   return (
     <div>
       <header className="border-b border-border px-6 py-4">
@@ -73,6 +109,16 @@ function ComparePage() {
       </header>
       <ActiveProductsBar />
       <Filters value={filters} onChange={setFilters} />
+      <div className="px-4 pt-4">
+        <AIInsightsSummary
+          variant="compare"
+          insights={insightsQ.data?.insights}
+          isLoading={insightsQ.isFetching}
+          error={insightsQ.data?.error ?? null}
+          onGenerate={() => insightsQ.refetch()}
+          canGenerate={activeProducts.length > 0 && compareReleases.length > 0}
+        />
+      </div>
       <div className="p-4">
         {activeProducts.length === 0 ? (
           <div className="rounded-md border border-dashed border-border p-12 text-center text-sm text-muted-foreground">
