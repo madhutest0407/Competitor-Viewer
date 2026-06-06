@@ -51,47 +51,46 @@ function stripHtml(html: string): string {
 
 /**
  * Filter blog posts to include only feature releases, enhancements, and new product announcements.
- * Stricter filtering - requires clear feature/enhancement/announcement indicators.
+ * VERY AGGRESSIVE - only keep posts that are clearly about product features/updates.
  */
 function isRelevantBlogPost(title: string, description: string): boolean {
   const combined = `${title} ${description}`.toLowerCase();
   const titleLower = title.toLowerCase();
 
   // ALWAYS EXCLUDE these - strong indicators of non-feature content
-  const excludeKeywords = [
-    "blog", "news", "press release", "interview",
-    "company update", "company news", "thought leadership",
-    "tip", "tips", "tricks", "guide", "how to", "how-to", "tutorial", "guide", "walkthrough",
-    "case study", "customer story", "webinar", "podcast", "video",
-    "event", "conference", "summit", "trade show", "speaking",
-    "security fix", "bug fix", "bug fixes", "patch", "hotfix", "vulnerability",
-    "job posting", "careers", "hiring", "we're hiring",
-    "report", "study", "benchmark", "survey", "research",
-    "partnership", "acquisition", "funding", "investment",
+  // Be very aggressive with exclusions
+  const excludePatterns = [
+    /\b(blog|news|press release|interview|press)\b/i,
+    /\b(tips|tricks|guide|how[- ]?to|tutorial|walkthrough)\b/i,
+    /\b(case study|customer story|webinar|podcast|video|vlog)\b/i,
+    /\b(event|conference|summit|trade show|speaking|speaker|talk)\b/i,
+    /\b(security[- ]?fix|bug[- ]?fix|patch|hotfix|vulnerability|security|breach)\b/i,
+    /\b(job|hiring|career|recruiting|company growth|company news|company update)\b/i,
+    /\b(report|study|benchmark|survey|research|whitepaper|ebook)\b/i,
+    /\b(partnership|acquisition|funding|investment|board|cto|ceo|executive)\b/i,
+    /\b(best[- ]?practice|trend|thought|leadership|opinion|analysis)\b/i,
+    /\b(privacy|data|gdpr|compliance|legal|tos|policy)\b/i,
   ];
 
-  if (excludeKeywords.some(keyword => combined.includes(keyword))) {
+  if (excludePatterns.some(pattern => pattern.test(combined))) {
     return false;
   }
 
-  // MUST contain at least one of these strong feature indicators
-  const featureKeywords = [
-    "new feature", "introducing", "launch", "launched", "releasing",
-    "available now", "now available", "coming soon",
-    "enhancement", "improved", "capability", "functionality",
-    "product update", "product release",
+  // MUST have strong product/feature indicators - very strict
+  const featurePatterns = [
+    /\b(new feature|feature release|product feature)\b/i,
+    /\b(introducing|announce[d]?|launch[ed]?)\b.*\b(feature|product|update|capability)\b/i,
+    /\b(available now|now available|coming soon|rolling out)\b/i,
+    /\b(enhancement|enhancement|improvement|improved|improve)\b.*\b(feature|product)\b/i,
   ];
 
-  const hasFeatureKeyword = featureKeywords.some(keyword => combined.includes(keyword));
+  const hasFeaturePattern = featurePatterns.some(pattern => pattern.test(combined));
 
-  // Additional check: title should suggest it's about a feature/update
-  // Exclude posts that are clearly just announcements with no product content
-  const titleIndicatesFeature = /^(new|introducing|announcing|available|launching?|released?)[\s\-:]/i.test(titleLower) ||
-    /[\s\-:](new|feature|update|release|available|launch|announcement)$/i.test(titleLower) ||
-    /feature|product|release|launch|new|available/i.test(titleLower);
+  // Also check title starts with feature-like terms
+  const titleStartsWithFeature = /^(new|introducing|announcing|available|launching|released|update|feature)[\s\-:]/i.test(titleLower);
 
-  // Must have feature keyword AND title must suggest it's about a feature
-  return hasFeatureKeyword && titleIndicatesFeature;
+  // Must match at least one feature pattern AND be substantive (not just a headline)
+  return hasFeaturePattern && (titleStartsWithFeature || description.length > 50);
 }
 
 function safeHttpUrl(u: string | null | undefined): string | null {
@@ -334,8 +333,12 @@ export async function syncProductRss(
 
     // Filter to only relevant blog posts (features, enhancements, announcements)
     // For products like Proton, Superhuman, Falstmail that have blog feeds
+    // Strip HTML from description first so filtering works correctly
     const items = allItems
-      .filter(it => isRelevantBlogPost(it.title, it.description))
+      .filter(it => {
+        const cleanDescription = stripHtml(it.description);
+        return isRelevantBlogPost(it.title, cleanDescription);
+      })
       .slice(0, 100);
 
     const { data: existingRows } = await supabaseAdmin
