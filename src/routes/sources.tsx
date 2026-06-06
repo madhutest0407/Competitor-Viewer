@@ -37,6 +37,7 @@ export const Route = createFileRoute("/sources")({
 function SourcesPage() {
   const qc = useQueryClient();
   const { activeIds, products, toggle } = useActiveProductIds();
+  const [syncingProductId, setSyncingProductId] = useState<string | null>(null);
   const runsQ = useQuery({
     queryKey: ["sync_runs"],
     queryFn: async () => {
@@ -53,16 +54,21 @@ function SourcesPage() {
 
   const sync = useMutation({
     mutationFn: async (productId: string) => {
-      const res = await fetch(`/api/public/sync/product?id=${encodeURIComponent(productId)}`, {
-        method: "POST",
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        const error = new Error(json.error ?? `HTTP ${res.status}`);
-        (error as any).rateLimited = json.rateLimited ?? false;
-        throw error;
+      setSyncingProductId(productId);
+      try {
+        const res = await fetch(`/api/public/sync/product?id=${encodeURIComponent(productId)}`, {
+          method: "POST",
+        });
+        const json = await res.json();
+        if (!res.ok) {
+          const error = new Error(json.error ?? `HTTP ${res.status}`);
+          (error as any).rateLimited = json.rateLimited ?? false;
+          throw error;
+        }
+        return json as { upserted: number };
+      } finally {
+        setSyncingProductId(null);
       }
-      return json as { upserted: number };
     },
     onSuccess: (r) => {
       toast.success(`Synced ${r.upserted} item${r.upserted === 1 ? "" : "s"}`);
@@ -143,10 +149,10 @@ function SourcesPage() {
                 <Button
                   size="sm"
                   onClick={() => sync.mutate(p.id)}
-                  disabled={sync.isPending}
+                  disabled={syncingProductId === p.id}
                   className="h-8 gap-1.5 text-xs"
                 >
-                  <RefreshCw className={`h-3 w-3 ${sync.isPending ? "animate-spin" : ""}`} />
+                  <RefreshCw className={`h-3 w-3 ${syncingProductId === p.id ? "animate-spin" : ""}`} />
                   Sync now
                 </Button>
               </div>

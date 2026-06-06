@@ -49,6 +49,41 @@ function stripHtml(html: string): string {
     .trim();
 }
 
+/**
+ * Filter blog posts to include only feature releases, enhancements, and new product announcements.
+ * Excludes: tips, guides, news, company updates, marketing content, etc.
+ */
+function isRelevantBlogPost(title: string, description: string): boolean {
+  const combined = `${title} ${description}`.toLowerCase();
+
+  // Keywords that indicate this is a feature/enhancement/product announcement
+  const relevantKeywords = [
+    "feature", "new feature", "launch", "launching", "released",
+    "enhancement", "improved", "improve", "capability",
+    "announcement", "announcing", "introducing", "introducing new",
+    "product release", "new product", "now available",
+    "update", "upgrade", "rolling out",
+  ];
+
+  // Keywords to exclude (company news, marketing, etc)
+  const excludeKeywords = [
+    "blog", "news", "press release", "interview",
+    "company update", "company news", "thought leadership",
+    "tip", "tips", "guide", "how to", "tutorial",
+    "case study", "customer story", "webinar",
+    "event", "conference", "summit", "security fix",
+    "bug fix", "bug fixes", "patch", "hotfix",
+  ];
+
+  // Check if any exclude keywords match
+  if (excludeKeywords.some(keyword => combined.includes(keyword))) {
+    return false;
+  }
+
+  // Check if any relevant keywords match
+  return relevantKeywords.some(keyword => combined.includes(keyword));
+}
+
 function safeHttpUrl(u: string | null | undefined): string | null {
   if (!u || typeof u !== "string") return null;
   try {
@@ -254,7 +289,7 @@ export async function syncProductRss(
   triggeredBy: "cron" | "manual",
 ): Promise<{ ok: boolean; upserted: number; error?: string; rateLimited?: boolean }> {
   if (triggeredBy === "manual" && !(await rateLimitCheck(productId))) {
-    return { ok: false, upserted: 0, rateLimited: true, error: "Rate limited (1 sync per 10 min)" };
+    return { ok: false, upserted: 0, rateLimited: true, error: "Rate limited (max 5 syncs per 10 minutes)" };
   }
   const { data: product, error: pErr } = await supabaseAdmin
     .from("products")
@@ -285,7 +320,13 @@ export async function syncProductRss(
     });
     if (!res.ok) throw new Error(`Feed ${product.feed_url} ${res.status}`);
     const xml = await res.text();
-    const items = parseFeed(xml).slice(0, 100);
+    const allItems = parseFeed(xml);
+
+    // Filter to only relevant blog posts (features, enhancements, announcements)
+    // For products like Proton, Superhuman, Falstmail that have blog feeds
+    const items = allItems
+      .filter(it => isRelevantBlogPost(it.title, it.description))
+      .slice(0, 100);
 
     const { data: existingRows } = await supabaseAdmin
       .from("releases")
@@ -366,10 +407,10 @@ async function rateLimitCheck(source: string): Promise<boolean> {
     .eq("source", source)
     .eq("triggered_by", "manual")
     .order("started_at", { ascending: false })
-    .limit(1);
-  if (!data || data.length === 0) return true;
-  const last = new Date(data[0].started_at).getTime();
-  return Date.now() - last > 10 * 60 * 1000; // 10 minutes
+    .limit(5); // Check last 5 syncs
+  if (!data || data.length < 5) return true; // Allow if less than 5 recent syncs
+  const oldest = new Date(data[4].started_at).getTime(); // 5th sync (oldest in last 5)
+  return Date.now() - oldest > 10 * 60 * 1000; // 10 minutes
 }
 
 export async function syncMicrosoft(triggeredBy: "cron" | "manual"): Promise<{
@@ -379,7 +420,7 @@ export async function syncMicrosoft(triggeredBy: "cron" | "manual"): Promise<{
   rateLimited?: boolean;
 }> {
   if (triggeredBy === "manual" && !(await rateLimitCheck("microsoft"))) {
-    return { ok: false, upserted: 0, rateLimited: true, error: "Rate limited (1 sync per 10 min)" };
+    return { ok: false, upserted: 0, rateLimited: true, error: "Rate limited (max 5 syncs per 10 minutes)" };
   }
   const { data: run } = await supabaseAdmin
     .from("sync_runs")
@@ -496,7 +537,7 @@ export async function syncGoogle(triggeredBy: "cron" | "manual"): Promise<{
   rateLimited?: boolean;
 }> {
   if (triggeredBy === "manual" && !(await rateLimitCheck("google"))) {
-    return { ok: false, upserted: 0, rateLimited: true, error: "Rate limited (1 sync per 10 min)" };
+    return { ok: false, upserted: 0, rateLimited: true, error: "Rate limited (max 5 syncs per 10 minutes)" };
   }
   const { data: run } = await supabaseAdmin
     .from("sync_runs")
