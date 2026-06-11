@@ -333,9 +333,12 @@ export async function syncProductRss(
 
     // Filter to only relevant blog posts (features, enhancements, announcements)
     // For products like Proton, Superhuman, Falstmail that have blog feeds
-    // Strip HTML from description first so filtering works correctly
+    // Skip filtering for Notion (official releases) and other known curated feeds
+    const shouldFilterBlogPosts = !['notion'].includes(product.id);
+
     const items = allItems
       .filter(it => {
+        if (!shouldFilterBlogPosts) return true; // Don't filter Notion items
         const cleanDescription = stripHtml(it.description);
         return isRelevantBlogPost(it.title, cleanDescription);
       })

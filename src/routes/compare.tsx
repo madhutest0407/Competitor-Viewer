@@ -189,7 +189,7 @@ function RowList({ items, onSelect }: { items: Release[]; onSelect: (r: Release)
         <li key={r.id}>
           <button
             onClick={() => onSelect(r)}
-            className="text-left text-[12px] leading-snug text-foreground/90 hover:text-primary"
+            className="cursor-pointer text-left text-[12px] leading-snug text-foreground/90 hover:text-primary hover:bg-accent/40 rounded px-1 transition-colors"
           >
             {r.title}{" "}
             <span className="text-muted-foreground">· {r.status}</span>

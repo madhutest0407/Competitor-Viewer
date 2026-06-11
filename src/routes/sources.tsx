@@ -149,7 +149,8 @@ function SourcesPage() {
                 <Button
                   size="sm"
                   onClick={() => sync.mutate(p.id)}
-                  disabled={syncingProductId === p.id}
+                  disabled={syncingProductId === p.id || !on}
+                  title={!on ? "Enable this product first to sync" : "Sync product updates now"}
                   className="h-8 gap-1.5 text-xs"
                 >
                   <RefreshCw className={`h-3 w-3 ${syncingProductId === p.id ? "animate-spin" : ""}`} />
