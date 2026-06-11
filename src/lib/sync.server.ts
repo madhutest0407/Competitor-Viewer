@@ -585,6 +585,7 @@ export async function syncGoogle(triggeredBy: "cron" | "manual"): Promise<{
       "Google Calendar",
       "Gmail",
       "Google Meet",
+      "Google Meet Hardware",
       "Google Chat",
       "Google Drive",
       "Google Docs",
