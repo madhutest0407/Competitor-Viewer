@@ -189,15 +189,17 @@ function SourcesPage() {
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button
-                          size="sm"
-                          onClick={() => sync.mutate(p.id)}
-                          disabled
-                          className="h-8 gap-1.5 text-xs"
-                        >
-                          <RefreshCw className="h-3 w-3" />
-                          Sync now
-                        </Button>
+                        <div>
+                          <Button
+                            size="sm"
+                            onClick={() => sync.mutate(p.id)}
+                            disabled
+                            className="h-8 gap-1.5 text-xs"
+                          >
+                            <RefreshCw className="h-3 w-3" />
+                            Sync now
+                          </Button>
+                        </div>
                       </TooltipTrigger>
                       <TooltipContent side="top">
                         Enable this product first to sync
