@@ -369,10 +369,14 @@ export async function syncProductRss(
       };
     });
 
-    let upserted = 0;
+    // Count only NEW items (not updates to existing items)
+    let newItemsCount = 0;
     const CHUNK = 100;
     for (let i = 0; i < rows.length; i += CHUNK) {
       const chunk = rows.slice(i, i + CHUNK);
+      // Count how many items in this chunk are actually new (not already in database)
+      const newInChunk = chunk.filter((item) => !existingMap.has(item.source_id)).length;
+
       const { error } = await supabaseAdmin
         .from("releases")
         .upsert(chunk, { onConflict: "source,source_id" });
@@ -380,7 +384,7 @@ export async function syncProductRss(
         console.error(`[syncProductRss:${product.id}] upsert error`, error);
         throw new Error(`upsert failed: ${error.message}`);
       }
-      upserted += chunk.length;
+      newItemsCount += newInChunk;
     }
 
     const needsAi = items.filter((it) => !existingMap.get(it.id)).slice(0, 30);
@@ -403,9 +407,9 @@ export async function syncProductRss(
 
     await supabaseAdmin
       .from("sync_runs")
-      .update({ finished_at: new Date().toISOString(), items_upserted: upserted })
+      .update({ finished_at: new Date().toISOString(), items_upserted: newItemsCount })
       .eq("id", run!.id);
-    return { ok: true, upserted };
+    return { ok: true, upserted: newItemsCount };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     await supabaseAdmin
@@ -500,14 +504,18 @@ export async function syncMicrosoft(triggeredBy: "cron" | "manual"): Promise<{
       };
     });
 
-    let upserted = 0;
+    // Count only NEW items (not updates to existing items)
+    let newItemsCount = 0;
     const CHUNK = 100;
     for (let i = 0; i < rows.length; i += CHUNK) {
       const chunk = rows.slice(i, i + CHUNK);
+      // Count how many items in this chunk are actually new (not already in database)
+      const newInChunk = chunk.filter((item) => !existingMap.has(String(item.source_id))).length;
+
       const { error } = await supabaseAdmin
         .from("releases")
         .upsert(chunk, { onConflict: "source,source_id" });
-      if (!error) upserted += chunk.length;
+      if (!error) newItemsCount += newInChunk;
     }
 
     // Phase 2: categorize a bounded set of uncategorized items in parallel.
@@ -533,9 +541,9 @@ export async function syncMicrosoft(triggeredBy: "cron" | "manual"): Promise<{
 
     await supabaseAdmin
       .from("sync_runs")
-      .update({ finished_at: new Date().toISOString(), items_upserted: upserted })
+      .update({ finished_at: new Date().toISOString(), items_upserted: newItemsCount })
       .eq("id", run!.id);
-    return { ok: true, upserted };
+    return { ok: true, upserted: newItemsCount };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     await supabaseAdmin
@@ -638,14 +646,18 @@ export async function syncGoogle(triggeredBy: "cron" | "manual"): Promise<{
       };
     });
 
-    let upserted = 0;
+    // Count only NEW items (not updates to existing items)
+    let newItemsCount = 0;
     const CHUNK = 100;
     for (let i = 0; i < rows.length; i += CHUNK) {
       const chunk = rows.slice(i, i + CHUNK);
+      // Count how many items in this chunk are actually new (not already in database)
+      const newInChunk = chunk.filter((item) => !existingMap.has(item.source_id)).length;
+
       const { error } = await supabaseAdmin
         .from("releases")
         .upsert(chunk, { onConflict: "source,source_id" });
-      if (!error) upserted += chunk.length;
+      if (!error) newItemsCount += newInChunk;
     }
 
     // Phase 2: AI-extract summary/status/category for a bounded set of new items.
@@ -677,9 +689,9 @@ export async function syncGoogle(triggeredBy: "cron" | "manual"): Promise<{
 
     await supabaseAdmin
       .from("sync_runs")
-      .update({ finished_at: new Date().toISOString(), items_upserted: upserted })
+      .update({ finished_at: new Date().toISOString(), items_upserted: newItemsCount })
       .eq("id", run!.id);
-    return { ok: true, upserted };
+    return { ok: true, upserted: newItemsCount };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     await supabaseAdmin

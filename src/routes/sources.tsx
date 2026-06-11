@@ -41,10 +41,12 @@ export const Route = createFileRoute("/sources")({
   }),
 });
 
+const MAX_CONCURRENT_SYNCS = 3;
+
 function SourcesPage() {
   const qc = useQueryClient();
   const { activeIds, products, toggle } = useActiveProductIds();
-  const [syncingProductId, setSyncingProductId] = useState<string | null>(null);
+  const [syncingProductIds, setSyncingProductIds] = useState<Set<string>>(new Set());
   const runsQ = useQuery({
     queryKey: ["sync_runs"],
     queryFn: async () => {
@@ -61,7 +63,7 @@ function SourcesPage() {
 
   const sync = useMutation({
     mutationFn: async (productId: string) => {
-      setSyncingProductId(productId);
+      setSyncingProductIds((prev) => new Set([...prev, productId]));
       try {
         const res = await fetch(`/api/public/sync/product?id=${encodeURIComponent(productId)}`, {
           method: "POST",
@@ -75,7 +77,11 @@ function SourcesPage() {
         }
         return { ...json, productId } as { upserted: number; productId: string };
       } finally {
-        setSyncingProductId(null);
+        setSyncingProductIds((prev) => {
+          const next = new Set(prev);
+          next.delete(productId);
+          return next;
+        });
       }
     },
     onSuccess: (r) => {
@@ -179,24 +185,36 @@ function SourcesPage() {
                   {on ? <Check className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
                   {on ? "Active" : "Enable"}
                 </Button>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        size="sm"
-                        onClick={() => sync.mutate(p.id)}
-                        disabled={syncingProductId === p.id || !on}
-                        className="h-8 gap-1.5 text-xs"
-                      >
-                        <RefreshCw className={`h-3 w-3 ${syncingProductId === p.id ? "animate-spin" : ""}`} />
-                        Sync now
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top">
-                      {!on ? "Enable this product first to sync" : "Sync product updates now"}
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                {!on ? (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          size="sm"
+                          onClick={() => sync.mutate(p.id)}
+                          disabled
+                          className="h-8 gap-1.5 text-xs"
+                        >
+                          <RefreshCw className="h-3 w-3" />
+                          Sync now
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        Enable this product first to sync
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : (
+                  <Button
+                    size="sm"
+                    onClick={() => sync.mutate(p.id)}
+                    disabled={syncingProductIds.has(p.id)}
+                    className="h-8 gap-1.5 text-xs"
+                  >
+                    <RefreshCw className={`h-3 w-3 ${syncingProductIds.has(p.id) ? "animate-spin" : ""}`} />
+                    Sync now
+                  </Button>
+                )}
               </div>
             </div>
           );
