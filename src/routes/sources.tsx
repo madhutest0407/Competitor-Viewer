@@ -2,10 +2,17 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { RefreshCw, ExternalLink, Check, Plus } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useActiveProductIds, MAX_ACTIVE } from "@/lib/products";
+import { cacheSyncResult, getCachedSyncResult } from "@/lib/sync-cache";
 import { useState } from "react";
 
 export const Route = createFileRoute("/sources")({
@@ -63,14 +70,17 @@ function SourcesPage() {
         if (!res.ok) {
           const error = new Error(json.error ?? `HTTP ${res.status}`);
           (error as any).rateLimited = json.rateLimited ?? false;
+          (error as any).productId = productId;
           throw error;
         }
-        return json as { upserted: number };
+        return { ...json, productId } as { upserted: number; productId: string };
       } finally {
         setSyncingProductId(null);
       }
     },
     onSuccess: (r) => {
+      // Cache the sync result locally for offline/public users
+      cacheSyncResult(r.productId, r.upserted);
       toast.success(`Synced ${r.upserted} item${r.upserted === 1 ? "" : "s"}`);
       qc.invalidateQueries({ queryKey: ["releases"] });
       qc.invalidateQueries({ queryKey: ["sync_runs"] });
@@ -78,6 +88,11 @@ function SourcesPage() {
     onError: (e) => {
       const message = e instanceof Error ? e.message : "Sync failed";
       const isRateLimited = (e as any).rateLimited;
+      const productId = (e as any).productId;
+      if (productId) {
+        // Cache error result as well
+        cacheSyncResult(productId, 0, message);
+      }
       if (isRateLimited) {
         toast.error(`Rate limited: ${message}`);
       } else {
@@ -87,7 +102,25 @@ function SourcesPage() {
   });
 
   function lastRun(source: string) {
-    return (runsQ.data ?? []).find((r) => r.source === source && r.finished_at);
+    // Try to get from database first
+    const dbRun = (runsQ.data ?? []).find((r) => r.source === source && r.finished_at);
+    if (dbRun) return dbRun;
+
+    // Fallback to cached result for public users
+    const cached = getCachedSyncResult(source);
+    if (cached) {
+      return {
+        id: `cached-${source}`,
+        source,
+        started_at: cached.timestamp,
+        finished_at: cached.timestamp,
+        items_upserted: cached.itemsUpserted,
+        triggered_by: "manual",
+        error: cached.error || null,
+      };
+    }
+
+    return undefined;
   }
 
   return (
@@ -146,16 +179,24 @@ function SourcesPage() {
                   {on ? <Check className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
                   {on ? "Active" : "Enable"}
                 </Button>
-                <Button
-                  size="sm"
-                  onClick={() => sync.mutate(p.id)}
-                  disabled={syncingProductId === p.id || !on}
-                  title={!on ? "Enable this product first to sync" : "Sync product updates now"}
-                  className="h-8 gap-1.5 text-xs"
-                >
-                  <RefreshCw className={`h-3 w-3 ${syncingProductId === p.id ? "animate-spin" : ""}`} />
-                  Sync now
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="sm"
+                        onClick={() => sync.mutate(p.id)}
+                        disabled={syncingProductId === p.id || !on}
+                        className="h-8 gap-1.5 text-xs"
+                      >
+                        <RefreshCw className={`h-3 w-3 ${syncingProductId === p.id ? "animate-spin" : ""}`} />
+                        Sync now
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                      {!on ? "Enable this product first to sync" : "Sync product updates now"}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             </div>
           );
