@@ -579,9 +579,23 @@ export async function syncGoogle(triggeredBy: "cron" | "manual"): Promise<{
       link: Array<{ rel: string; href: string }>;
       category?: Array<{ term: string }>;
     };
-    // Google Workspace Updates uses labels "Google Calendar" and "Gmail".
+    // Google Workspace Updates covers all products: Calendar, Gmail, Meet, Chat, Drive, Docs, Sheets, Slides, Forms, Workspace, etc.
     // Paginate via start-index (feed caps max-results at 150).
-    const labels = ["Google Calendar", "Gmail"];
+    const labels = [
+      "Google Calendar",
+      "Gmail",
+      "Google Meet",
+      "Google Chat",
+      "Google Drive",
+      "Google Docs",
+      "Google Sheets",
+      "Google Slides",
+      "Google Forms",
+      "Google Workspace",
+      "Google Keep",
+      "Google Sites",
+      "Google Tasks",
+    ];
     const entries: GEntry[] = [];
     const seen = new Set<string>();
     const PAGE = 150;
@@ -592,15 +606,27 @@ export async function syncGoogle(triggeredBy: "cron" | "manual"): Promise<{
         const url = `https://workspaceupdates.googleblog.com/feeds/posts/default/-/${encodeURIComponent(label)}?alt=json&max-results=${PAGE}&start-index=${start}`;
         const res = await fetch(url, { headers: { Accept: "application/json" } });
         if (!res.ok) throw new Error(`Google feed (${label}) ${res.status}`);
-        const body = (await res.json()) as { feed?: { entry?: GEntry[] } };
-        const pageEntries = body.feed?.entry ?? [];
+        let pageEntries: GEntry[] = [];
+        try {
+          const body = (await res.json()) as { feed?: { entry?: GEntry[] } };
+          pageEntries = body.feed?.entry ?? [];
+        } catch (parseErr) {
+          console.warn(`Failed to parse Google feed (${label}) page ${page}:`, parseErr);
+          break;
+        }
         let added = 0;
         for (const e of pageEntries) {
-          const id = e.id.$t;
-          if (seen.has(id)) continue;
-          seen.add(id);
-          entries.push(e);
-          added++;
+          try {
+            const id = e.id?.$t;
+            if (!id) continue;
+            if (seen.has(id)) continue;
+            seen.add(id);
+            entries.push(e);
+            added++;
+          } catch (entryErr) {
+            console.warn(`Failed to process Google entry:`, entryErr);
+            continue;
+          }
         }
         if (pageEntries.length < PAGE) break; // last page
         if (added === 0) break; // nothing new
@@ -617,34 +643,42 @@ export async function syncGoogle(triggeredBy: "cron" | "manual"): Promise<{
     );
 
     // Phase 1: fast upsert with fallback values for new items.
-    const rows = entries.map((entry) => {
-      const sourceId = entry.id.$t;
-      const existing = existingMap.get(sourceId);
-      const altLink = entry.link.find((l) => l.rel === "alternate");
-      const sourceUrl = altLink?.href ?? "";
-      const text = stripHtml(entry.content.$t);
-      const title = entry.title.$t;
-      const audience = (entry.category ?? [])
-        .map((c) => c.term)
-        .filter((t) =>
-          ["Rapid Release", "Scheduled Release", "End-user", "Admin console", "Beta"].includes(t),
-        );
-      return {
-        source: "google",
-        source_id: sourceId,
-        title,
-        description: text.slice(0, 4000),
-        summary: existing?.summary ?? text.slice(0, 240),
-        status: existing?.status ?? "Rolling out",
-        category: existing?.category ?? null,
-        release_date: entry.published.$t.slice(0, 10),
-        announced_date: entry.published.$t.slice(0, 10),
-        source_url: safeHttpUrl(sourceUrl),
-        platforms: [],
-        audience,
-        raw: entry as never,
-      };
-    });
+    const rows = entries
+      .map((entry) => {
+        try {
+          const sourceId = entry.id?.$t;
+          if (!sourceId) return null;
+          const existing = existingMap.get(sourceId);
+          const altLink = entry.link?.find((l) => l.rel === "alternate");
+          const sourceUrl = altLink?.href ?? "";
+          const text = stripHtml(entry.content?.$t ?? "");
+          const title = entry.title?.$t ?? "(No title)";
+          const audience = (entry.category ?? [])
+            .map((c) => c.term)
+            .filter((t) =>
+              ["Rapid Release", "Scheduled Release", "End-user", "Admin console", "Beta"].includes(t),
+            );
+          return {
+            source: "google",
+            source_id: sourceId,
+            title,
+            description: text.slice(0, 4000),
+            summary: existing?.summary ?? text.slice(0, 240),
+            status: existing?.status ?? "Rolling out",
+            category: existing?.category ?? null,
+            release_date: entry.published?.$t?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
+            announced_date: entry.published?.$t?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
+            source_url: safeHttpUrl(sourceUrl),
+            platforms: [],
+            audience,
+            raw: entry as never,
+          };
+        } catch (mapErr) {
+          console.warn(`Failed to map Google entry:`, mapErr);
+          return null;
+        }
+      })
+      .filter((r) => r !== null) as typeof rows;
 
     // Count only NEW items (not updates to existing items)
     let newItemsCount = 0;
@@ -662,19 +696,24 @@ export async function syncGoogle(triggeredBy: "cron" | "manual"): Promise<{
 
     // Phase 2: AI-extract summary/status/category for a bounded set of new items.
     const needsAi = entries
-      .filter((e) => !existingMap.get(e.id.$t)?.category)
+      .filter((e) => {
+        const id = e.id?.$t;
+        return id && !existingMap.get(id)?.category;
+      })
       .slice(0, 30);
     const AI_BATCH = 5;
     for (let i = 0; i < needsAi.length; i += AI_BATCH) {
       const batch = needsAi.slice(i, i + AI_BATCH);
       const results = await Promise.all(
         batch.map((entry) =>
-          aiExtract(entry.title.$t, stripHtml(entry.content.$t)),
+          aiExtract(entry.title?.$t ?? "", stripHtml(entry.content?.$t ?? "")),
         ),
       );
       await Promise.all(
-        batch.map((entry, idx) =>
-          supabaseAdmin
+        batch.map((entry, idx) => {
+          const sourceId = entry.id?.$t;
+          if (!sourceId) return Promise.resolve();
+          return supabaseAdmin
             .from("releases")
             .update({
               summary: results[idx].summary,
@@ -682,8 +721,8 @@ export async function syncGoogle(triggeredBy: "cron" | "manual"): Promise<{
               category: results[idx].category,
             })
             .eq("source", "google")
-            .eq("source_id", entry.id.$t),
-        ),
+            .eq("source_id", sourceId);
+        }),
       );
     }
 
