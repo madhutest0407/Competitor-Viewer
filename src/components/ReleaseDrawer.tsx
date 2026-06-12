@@ -20,9 +20,9 @@ export function ReleaseDrawer({
               <SheetTitle className="text-base leading-snug">{release.title}</SheetTitle>
             </SheetHeader>
             <div className="mt-4 flex flex-wrap gap-1.5 text-xs">
-              <Badge variant="outline">{release.source}</Badge>
-              <Badge variant="outline">{release.status}</Badge>
-              <Badge variant="outline">{release.category}</Badge>
+              {release.source && <Badge variant="outline">{release.source}</Badge>}
+              {release.status && <Badge variant="outline">{release.status}</Badge>}
+              {release.category && <Badge variant="outline">{release.category}</Badge>}
               {release.release_date && (
                 <Badge variant="outline">Released {release.release_date}</Badge>
               )}
