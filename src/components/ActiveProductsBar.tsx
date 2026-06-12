@@ -19,9 +19,8 @@ export function ActiveProductsBar() {
             key={p.id}
             onClick={async () => {
               const r = await toggle(p.id, !on);
-              if (!r.ok && r.reason === "max")
+              if (!r.ok)
                 toast.error(`Max ${MAX_ACTIVE} active products. Remove one first.`);
-              else if (!r.ok) toast.error(r.reason);
             }}
             className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-semibold transition-colors ${
               on
