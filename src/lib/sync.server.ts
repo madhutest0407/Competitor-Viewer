@@ -644,8 +644,7 @@ export async function syncGoogle(triggeredBy: "cron" | "manual"): Promise<{
     );
 
     // Phase 1: fast upsert with fallback values for new items.
-    const rows = entries
-      .map((entry) => {
+    const mapped = entries.map((entry) => {
         try {
           const sourceId = entry.id?.$t;
           if (!sourceId) return null;
@@ -678,8 +677,10 @@ export async function syncGoogle(triggeredBy: "cron" | "manual"): Promise<{
           console.warn(`Failed to map Google entry:`, mapErr);
           return null;
         }
-      })
-      .filter((r) => r !== null) as typeof rows;
+      });
+    const rows = mapped.filter(
+      (r): r is NonNullable<(typeof mapped)[number]> => r !== null,
+    );
 
     // Count only NEW items (not updates to existing items)
     let newItemsCount = 0;

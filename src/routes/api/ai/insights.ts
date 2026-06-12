@@ -264,7 +264,7 @@ export const Route = createFileRoute("/api/ai/insights")({
         }
 
         const productNames = products.map((p) => p.name);
-        const cacheKey = getCacheKey(variant, productNames, quarter);
+        const cacheKey = getCacheKey(variant, productNames, quarter ?? "");
         const cached = cache.get(cacheKey);
 
         if (cached && Date.now() - cached.timestamp < CACHE_TTL) {

@@ -176,9 +176,7 @@ function SourcesPage() {
                   variant={on ? "secondary" : "outline"}
                   onClick={async () => {
                     const r = await toggle(p.id, !on);
-                    if (!r.ok && r.reason === "max")
-                      toast.error(`Max ${MAX_ACTIVE} active products.`);
-                    else if (!r.ok) toast.error(r.reason);
+                    if (!r.ok) toast.error(`Max ${MAX_ACTIVE} active products.`);
                   }}
                   className="h-8 gap-1.5 text-xs"
                 >
