@@ -19,25 +19,25 @@ export function BrandLogo({ size = "md", showText = false, className = "" }: Bra
         width={pixelSize}
         height={pixelSize}
         viewBox="0 0 32 32"
-        fill="none"
         xmlns="http://www.w3.org/2000/svg"
       >
         {/* Background circle */}
-        <circle cx="16" cy="16" r="15" fill="#4335E8" />
+        <circle cx="16" cy="16" r="16" fill="#4335E8" />
 
-        {/* Magnifying glass outer ring */}
-        <circle cx="13" cy="13" r="8.5" fill="none" stroke="white" strokeWidth="1.8" />
+        {/* Outer ring (faint) */}
+        <circle cx="16" cy="16" r="13" fill="none" stroke="white" strokeWidth="0.8" opacity="0.3" />
 
-        {/* Inner search indicator dots */}
-        <circle cx="11" cy="11" r="1.2" fill="white" />
-        <circle cx="13" cy="14" r="1" fill="white" opacity="0.7" />
-        <circle cx="15" cy="12" r="0.9" fill="white" opacity="0.6" />
+        {/* Middle ring */}
+        <circle cx="16" cy="16" r="10" fill="none" stroke="white" strokeWidth="0.8" opacity="0.5" />
 
-        {/* Handle/stem of magnifying glass */}
-        <line x1="19" y1="19" x2="25" y2="25" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+        {/* Main circle */}
+        <circle cx="16" cy="16" r="7" fill="none" stroke="white" strokeWidth="1.2" />
 
-        {/* Subtle inner ring detail */}
-        <circle cx="13" cy="13" r="5.5" fill="none" stroke="white" strokeWidth="0.8" opacity="0.5" />
+        {/* Radar sweep (pie/wedge from 12 o'clock clockwise, ~60 degrees) */}
+        <path d="M 16 9 A 7 7 0 0 1 22.1 10.9 L 16 16 Z" fill="white" opacity="0.6" />
+
+        {/* Center dot */}
+        <circle cx="16" cy="16" r="1.2" fill="white" />
       </svg>
 
       {showText && (
