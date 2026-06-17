@@ -81,6 +81,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:site_name", content: "PM Radar" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { property: "og:title", content: "PM Radar — Product Updates Hub" },
+      { name: "twitter:title", content: "PM Radar — Product Updates Hub" },
+      { property: "og:description", content: "All product updates in one place. Track product launches and releases from Google Workspace, Microsoft 365, and other SaaS platforms." },
+      { name: "twitter:description", content: "All product updates in one place. Track product launches and releases from Google Workspace, Microsoft 365, and other SaaS platforms." },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/ca3edfd4-7512-42cb-9be1-3cdad1f56985" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/ca3edfd4-7512-42cb-9be1-3cdad1f56985" },
     ],
     links: [
       {
