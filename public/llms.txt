@@ -1,12 +1,12 @@
 # PM Radar
 
-> Timeline, board and gap analysis of Google Workspace and Microsoft 365 calendar releases for product managers.
+> Timeline, board and gap analysis of Google Workspace and Microsoft 365 releases for product managers.
 
 PM Radar aggregates official release notes from Google and Microsoft, organizes them by quarter and feature category, and highlights gaps where one vendor ships and the other does not.
 
 ## Pages
 
-- [Timeline](/): Chronological feed of recent calendar releases, filterable by quarter, product and category.
+- [Timeline](/): Chronological feed of recent releases, filterable by quarter, product and category.
 - [Compare by category](/compare): Side-by-side view of Google vs Microsoft releases grouped by feature category.
 - [Gap analysis](/gaps): Categories where one vendor has shipped and the other has not, with AI-powered strategic recommendations.
 - [Sources & sync](/sources): Tracked competitor products and recent release-feed sync runs.
