@@ -55,12 +55,12 @@ async function callLovableAI(prompt: string): Promise<AiResult> {
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
-        max_tokens: 800,
+        max_tokens: 2000,
         messages: [
           {
             role: "system",
             content:
-              "You are a product strategy analyst. Output ONLY a valid JSON array of at most 3 objects. Each object: { \"text\": string (one concise sentence, max 25 words), \"type\": \"threat\" | \"opportunity\" | \"trend\" }. No prose, no markdown fences, no extra text.",
+              "You are a product strategy analyst. Output ONLY a valid JSON array of at most 3 objects. Each object: { \"text\": string (one full sentence, up to 60 words), \"type\": \"threat\" | \"opportunity\" | \"trend\" }. No prose, no markdown fences, no extra text.",
           },
           { role: "user", content: prompt },
         ],
@@ -106,7 +106,7 @@ async function callLovableAI(prompt: string): Promise<AiResult> {
     const insights = parsed.slice(0, 3).map((item: unknown) => {
       const obj = item as Record<string, unknown>;
       return {
-        text: String(obj.text ?? "").slice(0, 200) || "",
+        text: String(obj.text ?? "").slice(0, 600) || "",
         type: ["threat", "opportunity", "trend"].includes(
           String(obj.type),
         )
