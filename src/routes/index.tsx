@@ -32,6 +32,7 @@ export const Route = createFileRoute("/")({
         name: "twitter:description",
         content:
           "Chronological feed of Google Workspace and Microsoft 365 releases.",
+      },
     ],
     links: [{ rel: "canonical", href: "https://competitorradar.lovable.app/" }],
   }),
