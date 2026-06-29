@@ -21,16 +21,16 @@ function applyTheme(t: Theme): "light" | "dark" {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("dark");
-  const [resolved, setResolved] = useState<"light" | "dark">("dark");
+  const [theme, setThemeState] = useState<Theme>("light");
+  const [resolved, setResolved] = useState<"light" | "dark">("light");
 
   useEffect(() => {
-    const stored = (localStorage.getItem(STORAGE_KEY) as Theme | null) ?? "dark";
+    const stored = (localStorage.getItem(STORAGE_KEY) as Theme | null) ?? "light";
     setThemeState(stored);
     setResolved(applyTheme(stored));
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const onChange = () => {
-      const s = (localStorage.getItem(STORAGE_KEY) as Theme | null) ?? "dark";
+      const s = (localStorage.getItem(STORAGE_KEY) as Theme | null) ?? "light";
       if (s === "system") setResolved(applyTheme("system"));
     };
     mq.addEventListener("change", onChange);
