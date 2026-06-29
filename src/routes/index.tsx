@@ -18,20 +18,20 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Chronological feed of Google Workspace and Microsoft 365 calendar releases. Filter by quarter, product and category.",
+          "Chronological feed of Google Workspace and Microsoft 365 releases. Filter by quarter, product and category.",
       },
       { property: "og:title", content: "Timeline — PM Radar" },
       {
         property: "og:description",
         content:
-          "Chronological feed of Google Workspace and Microsoft 365 calendar releases.",
+          "Chronological feed of Google Workspace and Microsoft 365 releases.",
       },
       { property: "og:url", content: "https://competitorradar.lovable.app/" },
       { name: "twitter:title", content: "Timeline — PM Radar" },
       {
         name: "twitter:description",
         content:
-          "Chronological feed of Google Workspace and Microsoft 365 calendar releases.",
+          "Chronological feed of Google Workspace and Microsoft 365 releases.",
       },
     ],
     links: [{ rel: "canonical", href: "https://competitorradar.lovable.app/" }],

@@ -15,20 +15,20 @@ export const Route = createFileRoute("/gaps")({
       {
         name: "description",
         content:
-          "Spot feature gaps between Google Workspace and Microsoft 365 calendar with AI-powered strategic recommendations.",
+          "Spot feature gaps between Google Workspace and Microsoft 365 with AI-powered strategic recommendations.",
       },
       { property: "og:title", content: "Gap analysis — PM Radar" },
       {
         property: "og:description",
         content:
-          "Spot feature gaps between Google Workspace and Microsoft 365 calendar.",
+          "Spot feature gaps between Google Workspace and Microsoft 365.",
       },
       { property: "og:url", content: "https://competitorradar.lovable.app/gaps" },
       { name: "twitter:title", content: "Gap analysis — PM Radar" },
       {
         name: "twitter:description",
         content:
-          "Spot feature gaps between Google Workspace and Microsoft 365 calendar.",
+          "Spot feature gaps between Google Workspace and Microsoft 365.",
       },
     ],
     links: [{ rel: "canonical", href: "https://competitorradar.lovable.app/gaps" }],
