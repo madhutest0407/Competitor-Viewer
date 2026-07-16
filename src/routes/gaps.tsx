@@ -6,6 +6,7 @@ import { CATEGORIES } from "@/lib/categories";
 import { ActiveProductsBar } from "@/components/ActiveProductsBar";
 import { AIInsightsSummary } from "@/components/AIInsightsSummary";
 import { useActiveProductIds } from "@/lib/products";
+import { SectionTabs } from "@/components/SectionTabs";
 
 export const Route = createFileRoute("/gaps")({
   component: GapsPage,
@@ -108,6 +109,7 @@ function GapsPage() {
           Where active products are investing — and your private notes per category.
         </p>
       </header>
+      <SectionTabs />
       <ActiveProductsBar />
       <div className="p-4">
         <AIInsightsSummary
@@ -118,7 +120,8 @@ function GapsPage() {
           onGenerate={() => insightsQ.refetch()}
           canGenerate={activeProducts.length > 0 && allReleases.length > 0}
         />
-        <table className="w-full border-collapse text-left text-xs">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-max border-collapse text-left text-xs">
           <thead>
             <tr className="border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground">
               <th className="px-3 py-2">Category</th>
@@ -148,6 +151,7 @@ function GapsPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );
