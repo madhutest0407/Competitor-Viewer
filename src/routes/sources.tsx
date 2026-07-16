@@ -11,7 +11,8 @@ import {
 import { toast } from "sonner";
 import { RefreshCw, ExternalLink, Check, Plus } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { useActiveProductIds, MAX_ACTIVE } from "@/lib/products";
+import { useActiveProductIds } from "@/lib/products";
+import { SectionTabs } from "@/components/SectionTabs";
 import { cacheSyncResult, getCachedSyncResult } from "@/lib/sync-cache";
 import { useState } from "react";
 
@@ -134,9 +135,10 @@ function SourcesPage() {
       <header className="border-b border-border px-6 py-4">
         <h1 className="text-lg font-semibold tracking-tight">Product Sources</h1>
         <p className="text-xs text-muted-foreground">
-          Public product updates — no account needed. Monitor up to {MAX_ACTIVE} products; trigger a sync per product (rate-limited).
+          Public product updates — no account needed. Toggle products, or trigger a sync per product (rate-limited).
         </p>
       </header>
+      <SectionTabs />
       <div className="space-y-3 p-4">
         {products.map((p) => {
           const last = lastRun(p.id);
@@ -174,10 +176,7 @@ function SourcesPage() {
                 <Button
                   size="sm"
                   variant={on ? "secondary" : "outline"}
-                  onClick={async () => {
-                    const r = await toggle(p.id, !on);
-                    if (!r.ok) toast.error(`Max ${MAX_ACTIVE} active products.`);
-                  }}
+                  onClick={() => { void toggle(p.id, !on); }}
                   className="h-8 gap-1.5 text-xs"
                 >
                   {on ? <Check className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
