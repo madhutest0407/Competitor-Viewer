@@ -1,96 +1,99 @@
-## Goal
+## Overview
 
-Linear-style web app that aggregates Google Workspace and Microsoft 365 calendar release announcements (past + upcoming) and presents them as a quarter timeline, status kanban, vendor comparison, and gap analysis. Shared backend so any PM can sign up and use it.
+Restructure CalRadar around two product **categories**:
+1. **Collaboration Products** — Google, Microsoft, Notion, Proton, Fastmail, Superhuman (existing)
+2. **Transactional Email** — SendGrid, Postmark, Mailgun, Mailjet, Brevo, Resend (new)
 
-## Stack
+Users pick a section, and their choice + active products are persisted per-section. Also: remove the 4-product cap, and add a daily 9am auto-sync.
 
-- **Frontend:** React 19 + Vite 7 (foundation already in template), TypeScript, Tailwind v4, shadcn/ui, TanStack file-based routing, TanStack Query.
-- **Backend:** Lovable Cloud (Postgres + Auth + TanStack server functions/routes).
-- **AI:** Lovable AI Gateway, `google/gemini-2.5-flash` (no key required).
-- **No external connectors required.**
+## 1. Data model changes
 
-## Data sources (no API keys, no Firecrawl)
+Add a `category` column to the `products` table:
 
-- **Microsoft 365 Roadmap** — public JSON feed `https://www.microsoft.com/releasecommunications/api/v2/m365`. Fetch, filter to Outlook / Teams Calendar / Bookings / Places / Calendar tags, normalize.
-- **Google Workspace Updates blog** — public Blogger JSON feed `https://workspaceupdates.googleblog.com/feeds/posts/default/-/Calendar?alt=json&max-results=50` (label-filtered to Calendar). Returns title, content HTML, published date, labels — no auth.
-- **AI extraction** — for each Google post, send HTML → Gemini Flash to extract structured `{ status, rolloutStart, rolloutEnd, audience, summary }`.
-- **Categorization** — second AI pass on every release (both vendors) to assign a normalized category (Scheduling, AI/Assist, Rooms & Resources, Mobile, Admin/Security, Integrations, Notifications, Sharing/Permissions, Other).
+```sql
+ALTER TABLE public.products
+  ADD COLUMN category text NOT NULL DEFAULT 'collaboration'
+  CHECK (category IN ('collaboration','transactional_email'));
+```
 
-All ingestion runs inside TanStack server routes — never from the browser.
+Backfill existing rows to `collaboration`, then insert 6 new products (all RSS feeds, reusing the existing `syncProductRss` pipeline):
 
-## Shared backend model
-
-| Data | Visibility | Writers |
+| id | name | feed |
 |---|---|---|
-| Google + Microsoft releases | Public read | Server (admin client) |
-| Sync runs / status | Public read | Server (admin client) |
-| Gap-analysis notes | Owner-only | Signed-in user |
-| Own product roadmap items | Owner-only | Signed-in user |
+| sendgrid | SendGrid | https://sendgrid.com/blog/feed |
+| postmark | Postmark | https://postmarkapp.com/blog/feed |
+| mailgun | Mailgun | https://www.mailgun.com/blog/rss.xml |
+| mailjet | Mailjet | https://www.mailjet.com/feed/ |
+| brevo | Brevo | https://www.brevo.com/blog/feed/ |
+| resend | Resend | https://resend.com/blog/rss.xml |
 
-**Auth:** email/password + Google sign-in (Lovable Cloud managed, no setup). Anonymous visitors can browse all release views read-only. Sign-in unlocks Notes column on Gaps and the My-Product tracker.
+Each seeded with `default_enabled = false`, unique color, and `category = 'transactional_email'`. (Feed URLs verified during implementation; swap to sitemap fallback if any 404s.)
 
-## Sync trigger
+## 2. Section state (persistent)
 
-- **Daily cron** via `pg_cron` → `pg_net.http_post` to a public route under `/api/public/sync/*`. Authenticated with the project anon key in the `apikey` header (standard Lovable Cloud cron pattern).
-- **"Sync now" button** in the UI, callable by any visitor. Same endpoint, with a global rate limit recorded in `sync_runs` (e.g. 1 manual sync per source per 10 min) so it can't be hammered.
+- New localStorage key `calradar.activeSection` → `'collaboration' | 'transactional_email'` (default: `collaboration`).
+- Change `calradar.activeProducts` from a flat array to `{ collaboration: string[], transactional_email: string[] }` with a one-time migration in the reader (treat old array as `collaboration`).
+- Update `useActiveProductIds` in `src/lib/products.ts` to be section-scoped: reading and toggling always operates on the current section.
+- Add `useActiveSection()` hook backed by the same shared-store pattern (`useSyncExternalStore`) so the sidebar/tab switcher, Timeline, Compare, Gaps, and Sources stay in sync.
 
-## Views
+## 3. UI: section tabs
 
-1. **Timeline** (`/`) — horizontal swimlanes per vendor, x-axis = quarters (-4Q to +4Q), cards positioned by release date, colored by status.
-2. **Board** (`/board`) — kanban: Planned · In development · Preview/Rolling out · Generally available · Cancelled.
-3. **Compare** (`/compare`) — table grouped by normalized category, columns Google / Microsoft / Gap.
-4. **Gaps** (`/gaps`) — categories ranked by Microsoft-only / Google-only / Both, with per-user "My take" notes column (signed-in only).
-5. **My product** (`/me`, signed-in only) — lightweight tracker for your own roadmap items per category, used for personal gap-vs-vendor view.
-6. **Sources** (`/sources`) — last sync status per source, "Sync now" buttons, source URLs.
+Add a `SectionTabs` component (rendered above `ActiveProductsBar`) on **Timeline**, **Compare**, **Gaps**, and **Sources**:
 
-Global filters: vendor, status, category, date range, full-text search.
+```
+[ Collaboration ] [ Transactional Email ]
+```
 
-## Schema (Postgres / Lovable Cloud)
+- Switching a tab flips `activeSection`, which re-filters the products bar and page content.
+- The chosen tab is remembered across reloads (localStorage).
+- `ActiveProductsBar` only shows products where `product.category === activeSection`.
 
-- `releases` — id, source_id (unique), vendor, title, description, summary, status, category, release_date, announced_date, source_url, platforms[], audience[], raw jsonb, updated_at. **Public SELECT; writes via service role only.**
-- `sync_runs` — id, source, started_at, finished_at, items_upserted, error, triggered_by ('cron' | 'manual'). **Public SELECT.**
-- `notes` — id, user_id (FK auth.users), category, body, updated_at. **RLS: user_id = auth.uid().**
-- `my_product_items` — id, user_id, category, title, status, target_date, notes. **RLS: user_id = auth.uid().**
-- `profiles` — id (FK auth.users), display_name, created_at. Auto-created via signup trigger.
+## 4. Remove the 4-product cap
 
-## Server routes / functions
+- Delete the `MAX_ACTIVE = 4` guard in `src/lib/products.ts` and the "max" toast in `ActiveProductsBar.tsx`.
+- Timeline grid: change `gridTemplateColumns: repeat(min(n, 4), ...)` to a responsive rule — up to 4 columns on wide screens, wrap onto new rows beyond that (e.g. `repeat(auto-fit, minmax(240px, 1fr))` capped visually).
+- Compare/Gaps tables: allow horizontal scroll when many products are active.
 
-- `POST /api/public/sync/microsoft` — fetches the M365 Roadmap JSON, normalizes, upserts via admin client, logs to `sync_runs`. Rate-limited for manual callers.
-- `POST /api/public/sync/google` — fetches the Blogger JSON feed (label=Calendar), AI-extracts structured fields, upserts, logs.
-- `POST /api/public/sync/categorize` — backfills missing categories via Gemini Flash.
-- `listReleases`, `getRelease`, `saveNote`, `listMyProductItems`, `saveMyProductItem` — TanStack server functions for app reads/writes (auth-aware via `requireSupabaseAuth` where user-scoped).
+## 5. Sources page: two sections
 
-## Frontend modules
+Split `src/routes/sources.tsx` into two subsections (Collaboration / Transactional Email), driven by the same `activeSection` state, so the sync toggles the user sees match the tab they picked. Each product row still has its individual "Sync now" button.
 
-- `src/lib/auth.tsx` — `<AuthProvider>` + `useAuth()` session listener
-- `src/lib/api.ts` — TanStack Query hooks
-- `src/components/layout/AppShell.tsx` — sidebar + top bar (Sign in / avatar)
-- `src/components/auth/AuthDialog.tsx` — email + Google
-- `src/routes/index.tsx` (Timeline), `board.tsx`, `compare.tsx`, `gaps.tsx`, `me.tsx`, `sources.tsx`
-- `src/components/ReleaseDrawer.tsx`
+## 6. Daily 9am auto-sync
 
-## Design (Linear-like)
+Add a new public cron endpoint `src/routes/api/public/sync.all.ts` that iterates all products (both categories) and calls the existing `syncGoogle` / `syncMicrosoft` / `syncProductRss` functions with `trigger = 'cron'`. Guard with the existing `authorizeApiRequest` (`CRON_SECRET` or JWT).
 
-Dark-first, dense, monospaced numerals, 13–14px base; sidebar nav; top bar with vendor pills + filters; vendor accents (Google blue / Microsoft teal); all colors as `oklch` tokens in `src/styles.css`; subtle 200ms motion on drawer/hover only.
+Register a pg_cron job (via `supabase--insert`, not migration) using the stable published URL:
 
-## Build order
+```sql
+SELECT cron.schedule(
+  'calradar-daily-sync',
+  '0 9 * * *',
+  $$
+  SELECT net.http_post(
+    url := 'https://pmradars.lovable.app/api/public/sync/all',
+    headers := '{"Content-Type":"application/json","apikey":"<anon-key>"}'::jsonb,
+    body := '{}'::jsonb
+  );
+  $$
+);
+```
 
-1. Configure Cloud auth: email + Google. Add schema + RLS + profile-on-signup trigger.
-2. `/api/public/sync/microsoft` server route + Sources page to verify upserts.
-3. `/api/public/sync/google` server route (Blogger feed + Gemini extraction).
-4. Categorize server route + integrate into both syncs.
-5. App shell, filters, auth dialog.
-6. Timeline + detail drawer.
-7. Board.
-8. Compare + Gaps (with per-user notes).
-9. My product tracker.
-10. Daily cron via `pg_cron` calling both sync endpoints with anon-key `apikey` header.
+Note: pg_cron runs in UTC. "9am system time" is ambiguous for a multi-user app; I'll schedule it for **9:00 in the app's primary timezone** — please confirm which timezone to use (e.g. UTC, IST, or your local), and I'll set the cron expression accordingly. Manual "Sync now" buttons remain unchanged.
 
-## Out of scope (v1)
+Also surface "Last auto-sync" timestamp on the Sources page (read from `sync_runs` where `trigger = 'cron'`).
 
-Team workspaces, shared notes, email/Slack alerts, exports.
+## 7. Files touched
 
-## Risks / notes
+- **DB migration**: add `category` column + backfill + seed 6 new products.
+- **`src/lib/products.ts`**: add `useActiveSection`, section-scoped `useActiveProductIds`, remove `MAX_ACTIVE`.
+- **`src/components/SectionTabs.tsx`** (new).
+- **`src/components/ActiveProductsBar.tsx`**: filter by section, drop cap toast.
+- **`src/routes/index.tsx`, `compare.tsx`, `gaps.tsx`, `sources.tsx`**: render `SectionTabs`, adjust grid.
+- **`src/lib/sync.server.ts`**: no changes — the generic RSS adapter already handles new products.
+- **`src/routes/api/public/sync.all.ts`** (new): cron entry point.
+- **pg_cron insert** via `supabase--insert`.
 
-- The Blogger JSON feed is unofficial-but-stable; if Google ever changes it, fallback is the same blog's Atom feed at `/feeds/posts/default`. Both are public.
-- The M365 Roadmap endpoint is unauthenticated but rate-limited; daily sync stays well within limits.
+## Open questions
+
+1. **Timezone** for the 9am auto-sync — UTC, IST, or another?
+2. If any of the 6 email vendors' RSS feeds don't work (some use custom paths), OK to fall back to their sitemap or skip that vendor with a note?
