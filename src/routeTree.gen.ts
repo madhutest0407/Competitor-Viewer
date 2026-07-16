@@ -19,6 +19,7 @@ import { Route as ApiAiInsightsRouteImport } from './routes/api/ai/insights'
 import { Route as ApiPublicSyncProductRouteImport } from './routes/api/public/sync.product'
 import { Route as ApiPublicSyncMicrosoftRouteImport } from './routes/api/public/sync.microsoft'
 import { Route as ApiPublicSyncGoogleRouteImport } from './routes/api/public/sync.google'
+import { Route as ApiPublicSyncAllRouteImport } from './routes/api/public/sync.all'
 
 const SourcesRoute = SourcesRouteImport.update({
   id: '/sources',
@@ -70,6 +71,11 @@ const ApiPublicSyncGoogleRoute = ApiPublicSyncGoogleRouteImport.update({
   path: '/api/public/sync/google',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicSyncAllRoute = ApiPublicSyncAllRouteImport.update({
+  id: '/api/public/sync/all',
+  path: '/api/public/sync/all',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -79,6 +85,7 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/sources': typeof SourcesRoute
   '/api/ai/insights': typeof ApiAiInsightsRoute
+  '/api/public/sync/all': typeof ApiPublicSyncAllRoute
   '/api/public/sync/google': typeof ApiPublicSyncGoogleRoute
   '/api/public/sync/microsoft': typeof ApiPublicSyncMicrosoftRoute
   '/api/public/sync/product': typeof ApiPublicSyncProductRoute
@@ -91,6 +98,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/sources': typeof SourcesRoute
   '/api/ai/insights': typeof ApiAiInsightsRoute
+  '/api/public/sync/all': typeof ApiPublicSyncAllRoute
   '/api/public/sync/google': typeof ApiPublicSyncGoogleRoute
   '/api/public/sync/microsoft': typeof ApiPublicSyncMicrosoftRoute
   '/api/public/sync/product': typeof ApiPublicSyncProductRoute
@@ -104,6 +112,7 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/sources': typeof SourcesRoute
   '/api/ai/insights': typeof ApiAiInsightsRoute
+  '/api/public/sync/all': typeof ApiPublicSyncAllRoute
   '/api/public/sync/google': typeof ApiPublicSyncGoogleRoute
   '/api/public/sync/microsoft': typeof ApiPublicSyncMicrosoftRoute
   '/api/public/sync/product': typeof ApiPublicSyncProductRoute
@@ -118,6 +127,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/sources'
     | '/api/ai/insights'
+    | '/api/public/sync/all'
     | '/api/public/sync/google'
     | '/api/public/sync/microsoft'
     | '/api/public/sync/product'
@@ -130,6 +140,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/sources'
     | '/api/ai/insights'
+    | '/api/public/sync/all'
     | '/api/public/sync/google'
     | '/api/public/sync/microsoft'
     | '/api/public/sync/product'
@@ -142,6 +153,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/sources'
     | '/api/ai/insights'
+    | '/api/public/sync/all'
     | '/api/public/sync/google'
     | '/api/public/sync/microsoft'
     | '/api/public/sync/product'
@@ -155,6 +167,7 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SourcesRoute: typeof SourcesRoute
   ApiAiInsightsRoute: typeof ApiAiInsightsRoute
+  ApiPublicSyncAllRoute: typeof ApiPublicSyncAllRoute
   ApiPublicSyncGoogleRoute: typeof ApiPublicSyncGoogleRoute
   ApiPublicSyncMicrosoftRoute: typeof ApiPublicSyncMicrosoftRoute
   ApiPublicSyncProductRoute: typeof ApiPublicSyncProductRoute
@@ -232,6 +245,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicSyncGoogleRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/sync/all': {
+      id: '/api/public/sync/all'
+      path: '/api/public/sync/all'
+      fullPath: '/api/public/sync/all'
+      preLoaderRoute: typeof ApiPublicSyncAllRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -243,6 +263,7 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   SourcesRoute: SourcesRoute,
   ApiAiInsightsRoute: ApiAiInsightsRoute,
+  ApiPublicSyncAllRoute: ApiPublicSyncAllRoute,
   ApiPublicSyncGoogleRoute: ApiPublicSyncGoogleRoute,
   ApiPublicSyncMicrosoftRoute: ApiPublicSyncMicrosoftRoute,
   ApiPublicSyncProductRoute: ApiPublicSyncProductRoute,
