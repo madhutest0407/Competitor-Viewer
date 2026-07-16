@@ -9,6 +9,7 @@ import { ReleaseDrawer } from "@/components/ReleaseDrawer";
 import { ActiveProductsBar } from "@/components/ActiveProductsBar";
 import { AIInsightsSummary } from "@/components/AIInsightsSummary";
 import { useActiveProductIds } from "@/lib/products";
+import { SectionTabs } from "@/components/SectionTabs";
 
 export const Route = createFileRoute("/compare")({
   component: ComparePage,
@@ -107,6 +108,7 @@ function ComparePage() {
         <h1 className="text-lg font-semibold tracking-tight">Compare</h1>
         <p className="text-xs text-muted-foreground">Side-by-side comparison of product updates by feature category.</p>
       </header>
+      <SectionTabs />
       <ActiveProductsBar />
       <Filters value={filters} onChange={setFilters} />
       <div className="px-4 pt-4">
@@ -125,7 +127,8 @@ function ComparePage() {
             Select at least one product above to compare.
           </div>
         ) : (
-        <table className="w-full border-collapse text-left text-xs">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-max border-collapse text-left text-xs">
           <thead>
             <tr className="border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground">
               <th className="w-44 px-3 py-2">Category</th>
@@ -167,6 +170,7 @@ function ComparePage() {
             })}
           </tbody>
         </table>
+        </div>
         )}
       </div>
       <ReleaseDrawer release={selected} onClose={() => setSelected(null)} />
