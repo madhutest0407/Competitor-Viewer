@@ -1,5 +1,4 @@
-import { useActiveProductIds, MAX_ACTIVE } from "@/lib/products";
-import { toast } from "sonner";
+import { useActiveProductIds } from "@/lib/products";
 import { Check, Plus } from "lucide-react";
 
 export function ActiveProductsBar() {
@@ -17,11 +16,7 @@ export function ActiveProductsBar() {
         return (
           <button
             key={p.id}
-            onClick={async () => {
-              const r = await toggle(p.id, !on);
-              if (!r.ok)
-                toast.error(`Max ${MAX_ACTIVE} active products. Remove one first.`);
-            }}
+            onClick={() => { void toggle(p.id, !on); }}
             className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-semibold transition-colors ${
               on
                 ? "border-transparent text-foreground"
@@ -36,7 +31,7 @@ export function ActiveProductsBar() {
         );
       })}
       <span className="ml-auto text-[10px] text-muted-foreground/70">
-        {activeIds.size}/{MAX_ACTIVE} active
+        {activeIds.size} active
       </span>
     </div>
   );
