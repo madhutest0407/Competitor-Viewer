@@ -11,10 +11,17 @@ export type Product = {
   default_enabled: boolean;
   color: string;
   sort_order: number;
+  category: SectionId;
 };
 
-export const MAX_ACTIVE = 4;
-const LS_KEY = "calradar.activeProducts";
+export type SectionId = "collaboration" | "transactional_email";
+export const SECTIONS: { id: SectionId; label: string }[] = [
+  { id: "collaboration", label: "Collaboration Products" },
+  { id: "transactional_email", label: "Transactional Email" },
+];
+
+const LS_ACTIVE_KEY = "calradar.activeProducts";
+const LS_SECTION_KEY = "calradar.activeSection";
 
 export function useProducts() {
   return useQuery({
@@ -31,77 +38,135 @@ export function useProducts() {
   });
 }
 
-function readLs(): Set<string> {
-  if (typeof window === "undefined") return new Set();
+// ---------- Shared stores ----------
+// Per-section active-product ids so switching sections keeps each side's picks.
+type SectionMap = Record<SectionId, Set<string>>;
+type Listener = () => void;
+
+function emptyMap(): SectionMap {
+  return { collaboration: new Set(), transactional_email: new Set() };
+}
+
+function readActiveLs(): SectionMap {
+  if (typeof window === "undefined") return emptyMap();
   try {
-    const raw = window.localStorage.getItem(LS_KEY);
-    if (!raw) return new Set();
-    return new Set(JSON.parse(raw) as string[]);
+    const raw = window.localStorage.getItem(LS_ACTIVE_KEY);
+    if (!raw) return emptyMap();
+    const parsed = JSON.parse(raw);
+    // migrate old flat array format → collaboration section
+    if (Array.isArray(parsed)) {
+      return { collaboration: new Set(parsed as string[]), transactional_email: new Set() };
+    }
+    return {
+      collaboration: new Set(parsed?.collaboration ?? []),
+      transactional_email: new Set(parsed?.transactional_email ?? []),
+    };
   } catch {
-    return new Set();
+    return emptyMap();
   }
 }
-
-function writeLs(set: Set<string>) {
+function writeActiveLs(m: SectionMap) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(LS_KEY, JSON.stringify(Array.from(set)));
+  window.localStorage.setItem(
+    LS_ACTIVE_KEY,
+    JSON.stringify({
+      collaboration: Array.from(m.collaboration),
+      transactional_email: Array.from(m.transactional_email),
+    }),
+  );
 }
 
-// Module-level shared store for anonymous active product ids so every
-// component instance (ActiveProductsBar, Timeline, Compare, Gaps) sees the
-// same selection. Without this, each useState lived per-component and
-// toggling in the bar did not update the page lanes.
-type Listener = () => void;
-let anonStore: Set<string> | null = null;
-const listeners = new Set<Listener>();
-function getAnonStore(): Set<string> {
-  if (anonStore === null) anonStore = readLs();
-  return anonStore;
+let activeStore: SectionMap | null = null;
+const activeListeners = new Set<Listener>();
+function getActive(): SectionMap {
+  if (activeStore === null) activeStore = readActiveLs();
+  return activeStore;
 }
-function setAnonStore(next: Set<string>) {
-  anonStore = next;
-  writeLs(next);
-  listeners.forEach((l) => l());
+function setActive(next: SectionMap) {
+  activeStore = next;
+  writeActiveLs(next);
+  activeListeners.forEach((l) => l());
 }
-function subscribeAnon(l: Listener) {
-  listeners.add(l);
-  return () => listeners.delete(l);
+function subscribeActive(l: Listener) {
+  activeListeners.add(l);
+  return () => activeListeners.delete(l);
 }
-function snapshotAnon() {
-  return getAnonStore();
+function snapshotActive() {
+  return getActive();
+}
+
+// Active section shared store
+function readSectionLs(): SectionId {
+  if (typeof window === "undefined") return "collaboration";
+  const v = window.localStorage.getItem(LS_SECTION_KEY);
+  return v === "transactional_email" ? "transactional_email" : "collaboration";
+}
+let sectionStore: SectionId | null = null;
+const sectionListeners = new Set<Listener>();
+function getSection(): SectionId {
+  if (sectionStore === null) sectionStore = readSectionLs();
+  return sectionStore;
+}
+function setSection(next: SectionId) {
+  sectionStore = next;
+  if (typeof window !== "undefined") window.localStorage.setItem(LS_SECTION_KEY, next);
+  sectionListeners.forEach((l) => l());
+}
+function subscribeSection(l: Listener) {
+  sectionListeners.add(l);
+  return () => sectionListeners.delete(l);
+}
+function snapshotSection() {
+  return getSection();
+}
+
+/** Read + set the currently-viewed section. Persisted in localStorage. */
+export function useActiveSection() {
+  const section = useSyncExternalStore(subscribeSection, snapshotSection, snapshotSection);
+  return { section, setSection };
 }
 
 /**
- * Active products: returns the set of product ids currently active for the
- * viewer. Preferences are persisted in localStorage. `default_enabled`
- * products are included on first load.
+ * Active products, scoped to the currently-selected section. Preferences are
+ * persisted in localStorage per section, so switching between Collaboration
+ * and Transactional Email preserves each side's picks.
  */
 export function useActiveProductIds() {
   const productsQ = useProducts();
-  const activeIds = useSyncExternalStore(subscribeAnon, snapshotAnon, snapshotAnon);
+  const section = useSyncExternalStore(subscribeSection, snapshotSection, snapshotSection);
+  const activeMap = useSyncExternalStore(subscribeActive, snapshotActive, snapshotActive);
+  const activeIds = activeMap[section];
 
-  // Seed defaults once products load and nothing has been picked yet.
+  // Seed defaults once products load and nothing has been picked yet for a section.
   useEffect(() => {
     if (!productsQ.data) return;
     if (typeof window === "undefined") return;
-    if (window.localStorage.getItem(LS_KEY) !== null) return;
-    setAnonStore(new Set(productsQ.data.filter((p) => p.default_enabled).map((p) => p.id)));
+    const raw = window.localStorage.getItem(LS_ACTIVE_KEY);
+    // Only seed on the very first visit (nothing stored yet)
+    if (raw !== null) return;
+    const map = emptyMap();
+    for (const p of productsQ.data) {
+      if (p.default_enabled) map[p.category].add(p.id);
+    }
+    setActive(map);
   }, [productsQ.data]);
 
+  const sectionProducts = (productsQ.data ?? []).filter((p) => p.category === section);
+
   const toggle = async (productId: string, next: boolean) => {
-    if (next && activeIds.size >= MAX_ACTIVE && !activeIds.has(productId)) {
-      return { ok: false as const, reason: "max" as const };
-    }
-    const nextSet = new Set(getAnonStore());
-    if (next) nextSet.add(productId);
-    else nextSet.delete(productId);
-    setAnonStore(nextSet);
+    const current = getActive();
+    const bucket = new Set(current[section]);
+    if (next) bucket.add(productId);
+    else bucket.delete(productId);
+    setActive({ ...current, [section]: bucket });
     return { ok: true as const };
   };
 
   return {
     activeIds,
-    products: productsQ.data ?? [],
+    products: sectionProducts,
+    allProducts: productsQ.data ?? [],
+    section,
     isLoading: productsQ.isLoading,
     toggle,
   };
