@@ -76,6 +76,7 @@ export type Database = {
       }
       products: {
         Row: {
+          category: string
           color: string
           created_at: string
           default_enabled: boolean
@@ -87,6 +88,7 @@ export type Database = {
           sort_order: number
         }
         Insert: {
+          category?: string
           color?: string
           created_at?: string
           default_enabled?: boolean
@@ -98,6 +100,7 @@ export type Database = {
           sort_order?: number
         }
         Update: {
+          category?: string
           color?: string
           created_at?: string
           default_enabled?: boolean

@@ -8,6 +8,7 @@ import { ReleaseDrawer } from "@/components/ReleaseDrawer";
 import { ActiveProductsBar } from "@/components/ActiveProductsBar";
 import { AIInsightsSummary } from "@/components/AIInsightsSummary";
 import { useActiveProductIds } from "@/lib/products";
+import { SectionTabs } from "@/components/SectionTabs";
 import { ChevronDown } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -122,6 +123,7 @@ function TimelinePage() {
           View product updates by quarter. Track launches and releases across all your monitored products.
         </p>
       </header>
+      <SectionTabs />
       <ActiveProductsBar />
       <div className="border-b border-border bg-background/60">
         <div className="flex items-center gap-1 overflow-x-auto px-6 py-2">
@@ -188,7 +190,7 @@ function TimelinePage() {
             <div
               className="grid gap-4"
               style={{
-                gridTemplateColumns: `repeat(${Math.min(activeProducts.length, 4)}, minmax(0, 1fr))`,
+                gridTemplateColumns: `repeat(auto-fit, minmax(240px, 1fr))`,
               }}
             >
               {activeProducts.map((p) => (
