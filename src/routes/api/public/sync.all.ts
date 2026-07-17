@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { syncGoogle, syncMicrosoft, syncProductRss } from "@/lib/sync.server";
+import { syncProduct } from "@/lib/sync.server";
 
 /**
  * Daily auto-sync entry point. Called by pg_cron every morning to refresh
@@ -19,12 +19,7 @@ export const Route = createFileRoute("/api/public/sync/all")({
         const results: Record<string, { ok: boolean; upserted: number; error?: string }> = {};
         for (const id of ids) {
           try {
-            const r =
-              id === "google"
-                ? await syncGoogle("cron")
-                : id === "microsoft"
-                  ? await syncMicrosoft("cron")
-                  : await syncProductRss(id, "cron");
+            const r = await syncProduct(id, "cron");
             results[id] = { ok: r.ok, upserted: r.upserted, error: r.error };
           } catch (err) {
             results[id] = {
