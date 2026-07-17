@@ -219,6 +219,246 @@ async function aiCategorizeGeneric(
   }
 }
 
+// ---------------------------------------------------------------------------
+// Changelog HTML adapter — for products that publish release notes as an
+// HTML page (Mailgun, Resend, Brevo, Mailjet, Postmark, Twilio SendGrid) and
+// don't offer a usable RSS/Atom feed. We fetch the page with a browser UA,
+// strip scripts/styles, then ask the AI Gateway to extract structured entries
+// (feature / api / enhancement / fix only — no marketing).
+// ---------------------------------------------------------------------------
+
+type ChangelogEntry = {
+  title: string;
+  description: string;
+  date: string | null;
+  href: string | null;
+  kind: string;
+};
+
+async function aiExtractChangelog(
+  productName: string,
+  pageUrl: string,
+  pageText: string,
+): Promise<ChangelogEntry[]> {
+  const key = process.env.LOVABLE_API_KEY;
+  if (!key) return [];
+  const prompt = `You are extracting release notes from the ${productName} changelog page (${pageUrl}).
+
+Return ONLY a JSON array (no prose, no markdown fences). Each entry has:
+- title: short, imperative (e.g. "Add webhook retry policy")
+- description: 1-2 sentence summary of the change
+- date: ISO date "YYYY-MM-DD" or null if unknown
+- href: absolute URL to the entry if present, else null
+- kind: one of "feature" | "api" | "enhancement" | "fix"
+
+STRICT rules:
+- Include ONLY product release notes: new features, API additions/changes, enhancements, bug fixes.
+- REJECT and skip: marketing posts, webinars, case studies, customer stories,
+  hiring/company/partnership news, pricing or plan announcements, generic
+  "best practices" or "guide" blog articles, event/conference recaps.
+- Skip entries whose title or description cannot be identified.
+- Max 40 entries. If page contains no release notes, return [].
+
+Page content:
+${pageText.slice(0, 40000)}`;
+
+  try {
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: "You output ONLY a valid JSON array. No prose, no markdown fences." },
+          { role: "user", content: prompt },
+        ],
+      }),
+    });
+    if (!res.ok) {
+      console.warn(`aiExtractChangelog ${productName} AI ${res.status}`);
+      return [];
+    }
+    const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    let text = (json.choices?.[0]?.message?.content ?? "[]").trim();
+    text = text.replace(/```json|```/g, "").trim();
+    // Tolerate stray prose: slice from first "[" to last "]".
+    const start = text.indexOf("[");
+    const end = text.lastIndexOf("]");
+    if (start >= 0 && end > start) text = text.slice(start, end + 1);
+    const parsed = JSON.parse(text) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((r): ChangelogEntry | null => {
+        if (!r || typeof r !== "object") return null;
+        const o = r as Record<string, unknown>;
+        const title = typeof o.title === "string" ? o.title.trim() : "";
+        if (!title) return null;
+        const description = typeof o.description === "string" ? o.description.trim() : "";
+        const rawDate = typeof o.date === "string" ? o.date.trim() : "";
+        const date = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : null;
+        const href = typeof o.href === "string" ? safeHttpUrl(o.href) : null;
+        const kind = typeof o.kind === "string" ? o.kind.toLowerCase() : "feature";
+        return { title, description, date, href, kind };
+      })
+      .filter((r): r is ChangelogEntry => r !== null)
+      .slice(0, 60);
+  } catch (err) {
+    console.warn(`aiExtractChangelog ${productName} failed`, err);
+    return [];
+  }
+}
+
+// Rough marketing filter as a belt-and-braces pass after the AI extraction,
+// in case the model lets something slip through.
+function looksLikeMarketing(title: string, description: string): boolean {
+  const t = `${title} ${description}`.toLowerCase();
+  return /\b(webinar|case study|customer story|guide to|best practice|hiring|we're hiring|partnership|acquires|acquisition|funding|series [abc]|ebook|whitepaper|conference|summit)\b/.test(
+    t,
+  );
+}
+
+export async function syncProductChangelog(
+  productId: string,
+  triggeredBy: "cron" | "manual",
+): Promise<{ ok: boolean; upserted: number; error?: string; rateLimited?: boolean }> {
+  if (triggeredBy === "manual" && !(await rateLimitCheck(productId))) {
+    return { ok: false, upserted: 0, rateLimited: true, error: "Rate limited (max 5 syncs per 10 minutes)" };
+  }
+  const { data: product, error: pErr } = await supabaseAdmin
+    .from("products")
+    .select("id,name,feed_url")
+    .eq("id", productId)
+    .single();
+  if (pErr || !product) return { ok: false, upserted: 0, error: pErr?.message ?? "Product not found" };
+  const pageUrl = safeHttpUrl(product.feed_url);
+  if (!pageUrl) return { ok: false, upserted: 0, error: "No changelog URL configured" };
+
+  const { data: run } = await supabaseAdmin
+    .from("sync_runs")
+    .insert({ source: product.id, triggered_by: triggeredBy })
+    .select("id")
+    .single();
+
+  try {
+    const res = await fetch(pageUrl, {
+      headers: {
+        // Some vendors (Mailgun, Mailjet) 403 non-browser UAs.
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+    });
+    if (!res.ok) throw new Error(`Changelog ${pageUrl} ${res.status}`);
+    const html = await res.text();
+    const text = stripHtml(html);
+    if (text.length < 500) {
+      throw new Error(
+        `Changelog page rendered too little text (${text.length} chars) — likely JS-only. Consider a different URL.`,
+      );
+    }
+
+    const extracted = await aiExtractChangelog(product.name, pageUrl, text);
+    const items = extracted
+      .filter((e) => !looksLikeMarketing(e.title, e.description))
+      .slice(0, 60);
+
+    const { data: existingRows } = await supabaseAdmin
+      .from("releases")
+      .select("source_id, category")
+      .eq("source", product.id);
+    const existingMap = new Map((existingRows ?? []).map((r) => [r.source_id, r.category]));
+
+    // Stable id from title+date so re-runs upsert instead of duplicating.
+    const makeId = (e: ChangelogEntry) =>
+      `${(e.date ?? "").slice(0, 10)}::${e.title.toLowerCase().replace(/\s+/g, " ").slice(0, 120)}`;
+
+    const rows = items.map((e) => {
+      const id = makeId(e);
+      return {
+        source: product.id,
+        source_id: id,
+        title: e.title,
+        description: e.description.slice(0, 4000),
+        summary: e.description.slice(0, 240),
+        status: "Generally available",
+        category: existingMap.get(id) ?? null,
+        release_date: e.date,
+        announced_date: e.date,
+        source_url: e.href ?? pageUrl,
+        platforms: [],
+        audience: [e.kind],
+        raw: e as never,
+      };
+    });
+
+    let newItemsCount = 0;
+    const CHUNK = 100;
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      const chunk = rows.slice(i, i + CHUNK);
+      const newInChunk = chunk.filter((r) => !existingMap.has(r.source_id)).length;
+      const { error } = await supabaseAdmin
+        .from("releases")
+        .upsert(chunk, { onConflict: "source,source_id" });
+      if (error) throw new Error(`upsert failed: ${error.message}`);
+      newItemsCount += newInChunk;
+    }
+
+    // Phase 2: reuse the generic categorizer to place items into the app's
+    // taxonomy (Delivery / Auth / Templates / etc.).
+    const needsAi = rows.filter((r) => !existingMap.get(r.source_id)).slice(0, 30);
+    const AI_BATCH = 5;
+    for (let i = 0; i < needsAi.length; i += AI_BATCH) {
+      const batch = needsAi.slice(i, i + AI_BATCH);
+      const cats = await Promise.all(
+        batch.map((r) => aiCategorizeGeneric(product.name, r.title, r.description)),
+      );
+      await Promise.all(
+        batch.map((r, idx) =>
+          supabaseAdmin
+            .from("releases")
+            .update({ category: cats[idx] })
+            .eq("source", product.id)
+            .eq("source_id", r.source_id),
+        ),
+      );
+    }
+
+    await supabaseAdmin
+      .from("sync_runs")
+      .update({ finished_at: new Date().toISOString(), items_upserted: newItemsCount })
+      .eq("id", run!.id);
+    return { ok: true, upserted: newItemsCount };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    await supabaseAdmin
+      .from("sync_runs")
+      .update({ finished_at: new Date().toISOString(), error: msg })
+      .eq("id", run!.id);
+    return { ok: false, upserted: 0, error: msg };
+  }
+}
+
+/**
+ * Dispatcher — pick the right adapter for a product id. Google/Microsoft
+ * remain hard-coded (they have bespoke sources); everything else routes by
+ * the product's `feed_kind` column.
+ */
+export async function syncProduct(
+  productId: string,
+  triggeredBy: "cron" | "manual",
+): Promise<{ ok: boolean; upserted: number; error?: string; rateLimited?: boolean }> {
+  if (productId === "google") return syncGoogle(triggeredBy);
+  if (productId === "microsoft") return syncMicrosoft(triggeredBy);
+  const { data: product } = await supabaseAdmin
+    .from("products")
+    .select("feed_kind")
+    .eq("id", productId)
+    .single();
+  if (product?.feed_kind === "changelog_html") return syncProductChangelog(productId, triggeredBy);
+  return syncProductRss(productId, triggeredBy);
+}
+
 type RssItem = {
   id: string;
   title: string;
