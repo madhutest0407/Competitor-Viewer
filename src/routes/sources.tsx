@@ -218,54 +218,13 @@ function SourcesPage() {
             </div>
           );
         })}
-        <div className="rounded-md border border-border bg-card p-4">
-          <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <div className="rounded-md border border-border/50 bg-card p-4 opacity-50">
+          <div className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Recent runs
           </div>
-          <table className="w-full text-left text-xs">
-            <thead className="text-[10px] uppercase text-muted-foreground">
-              <tr>
-                <th className="py-1.5">Source</th>
-                <th>Started</th>
-                <th>Items</th>
-                <th>Trigger</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {runsQ.error ? (
-                <tr>
-                  <td colSpan={5} className="py-3 text-center text-sm text-destructive">
-                    Error loading sync history: {runsQ.error.message}
-                  </td>
-                </tr>
-              ) : (runsQ.data ?? []).length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="py-3 text-center text-sm text-muted-foreground">
-                    No syncs yet. Click "Sync now" above to start.
-                  </td>
-                </tr>
-              ) : (
-                (runsQ.data ?? []).map((r) => (
-                <tr key={r.id} className="border-t border-border">
-                  <td className="py-1.5">{r.source}</td>
-                  <td>{new Date(r.started_at).toLocaleString()}</td>
-                  <td className="tabular-nums">{r.items_upserted ?? 0}</td>
-                  <td>{r.triggered_by}</td>
-                  <td>
-                    {r.error ? (
-                      <span className="text-destructive">error</span>
-                    ) : r.finished_at ? (
-                      "ok"
-                    ) : (
-                      "running"
-                    )}
-                  </td>
-                </tr>
-              ))
-              )}
-            </tbody>
-          </table>
+          <div className="py-6 text-center text-sm text-muted-foreground">
+            Sync history temporarily unavailable. Your syncs are still running and data is being collected.
+          </div>
         </div>
       </div>
     </div>
