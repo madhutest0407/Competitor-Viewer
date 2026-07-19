@@ -554,11 +554,17 @@ export async function syncProductRss(
     return { ok: false, upserted: 0, error: `Invalid feed URL: "${product.feed_url}". Set a full URL (starting with https://) for this product.` };
   }
 
-  const { data: run } = await supabaseAdmin
+  const { data: run, error: insertError } = await supabaseAdmin
     .from("sync_runs")
     .insert({ source: product.id, triggered_by: triggeredBy })
     .select("id")
     .single();
+
+  if (insertError || !run) {
+    const errMsg = insertError?.message ?? "Failed to create sync_runs record";
+    console.error(`${product.id} sync_runs INSERT failed:`, errMsg);
+    return { ok: false, upserted: 0, error: errMsg };
+  }
 
   try {
     const res = await fetch(product.feed_url, {
@@ -648,14 +654,16 @@ export async function syncProductRss(
     await supabaseAdmin
       .from("sync_runs")
       .update({ finished_at: new Date().toISOString(), items_upserted: newItemsCount })
-      .eq("id", run!.id);
+      .eq("id", run.id);
     return { ok: true, upserted: newItemsCount };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    await supabaseAdmin
-      .from("sync_runs")
-      .update({ finished_at: new Date().toISOString(), error: msg })
-      .eq("id", run!.id);
+    if (run?.id) {
+      await supabaseAdmin
+        .from("sync_runs")
+        .update({ finished_at: new Date().toISOString(), error: msg })
+        .eq("id", run.id);
+    }
     return { ok: false, upserted: 0, error: msg };
   }
 }
@@ -682,11 +690,17 @@ export async function syncMicrosoft(triggeredBy: "cron" | "manual"): Promise<{
   if (triggeredBy === "manual" && !(await rateLimitCheck("microsoft"))) {
     return { ok: false, upserted: 0, rateLimited: true, error: "Rate limited (max 5 syncs per 10 minutes)" };
   }
-  const { data: run } = await supabaseAdmin
+  const { data: run, error: insertError } = await supabaseAdmin
     .from("sync_runs")
     .insert({ source: "microsoft", triggered_by: triggeredBy })
     .select("id")
     .single();
+
+  if (insertError || !run) {
+    const errMsg = insertError?.message ?? "Failed to create sync_runs record";
+    console.error("Microsoft sync_runs INSERT failed:", errMsg);
+    return { ok: false, upserted: 0, error: errMsg };
+  }
 
   try {
     const res = await fetch("https://www.microsoft.com/releasecommunications/api/v2/m365", {
@@ -782,14 +796,16 @@ export async function syncMicrosoft(triggeredBy: "cron" | "manual"): Promise<{
     await supabaseAdmin
       .from("sync_runs")
       .update({ finished_at: new Date().toISOString(), items_upserted: newItemsCount })
-      .eq("id", run!.id);
+      .eq("id", run.id);
     return { ok: true, upserted: newItemsCount };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    await supabaseAdmin
-      .from("sync_runs")
-      .update({ finished_at: new Date().toISOString(), error: msg })
-      .eq("id", run!.id);
+    if (run?.id) {
+      await supabaseAdmin
+        .from("sync_runs")
+        .update({ finished_at: new Date().toISOString(), error: msg })
+        .eq("id", run.id);
+    }
     return { ok: false, upserted: 0, error: msg };
   }
 }
@@ -803,11 +819,17 @@ export async function syncGoogle(triggeredBy: "cron" | "manual"): Promise<{
   if (triggeredBy === "manual" && !(await rateLimitCheck("google"))) {
     return { ok: false, upserted: 0, rateLimited: true, error: "Rate limited (max 5 syncs per 10 minutes)" };
   }
-  const { data: run } = await supabaseAdmin
+  const { data: run, error: insertError } = await supabaseAdmin
     .from("sync_runs")
     .insert({ source: "google", triggered_by: triggeredBy })
     .select("id")
     .single();
+
+  if (insertError || !run) {
+    const errMsg = insertError?.message ?? "Failed to create sync_runs record";
+    console.error("Google sync_runs INSERT failed:", errMsg);
+    return { ok: false, upserted: 0, error: errMsg };
+  }
 
   try {
     type GEntry = {
@@ -971,14 +993,16 @@ export async function syncGoogle(triggeredBy: "cron" | "manual"): Promise<{
     await supabaseAdmin
       .from("sync_runs")
       .update({ finished_at: new Date().toISOString(), items_upserted: newItemsCount })
-      .eq("id", run!.id);
+      .eq("id", run.id);
     return { ok: true, upserted: newItemsCount };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    await supabaseAdmin
-      .from("sync_runs")
-      .update({ finished_at: new Date().toISOString(), error: msg })
-      .eq("id", run!.id);
+    if (run?.id) {
+      await supabaseAdmin
+        .from("sync_runs")
+        .update({ finished_at: new Date().toISOString(), error: msg })
+        .eq("id", run.id);
+    }
     return { ok: false, upserted: 0, error: msg };
   }
 }

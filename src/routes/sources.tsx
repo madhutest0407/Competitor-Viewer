@@ -233,7 +233,20 @@ function SourcesPage() {
               </tr>
             </thead>
             <tbody>
-              {(runsQ.data ?? []).map((r) => (
+              {runsQ.error ? (
+                <tr>
+                  <td colSpan={5} className="py-3 text-center text-sm text-destructive">
+                    Error loading sync history: {runsQ.error.message}
+                  </td>
+                </tr>
+              ) : (runsQ.data ?? []).length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-3 text-center text-sm text-muted-foreground">
+                    No syncs yet. Click "Sync now" above to start.
+                  </td>
+                </tr>
+              ) : (
+                (runsQ.data ?? []).map((r) => (
                 <tr key={r.id} className="border-t border-border">
                   <td className="py-1.5">{r.source}</td>
                   <td>{new Date(r.started_at).toLocaleString()}</td>
@@ -249,7 +262,8 @@ function SourcesPage() {
                     )}
                   </td>
                 </tr>
-              ))}
+              ))
+              )}
             </tbody>
           </table>
         </div>
