@@ -173,6 +173,30 @@ function SourcesPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                    last?.error
+                      ? "bg-destructive/10 text-destructive"
+                      : last
+                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                        : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-1.5 w-1.5 rounded-full ${
+                      last?.error
+                        ? "bg-destructive"
+                        : last
+                          ? "bg-emerald-500"
+                          : "bg-muted-foreground/50"
+                    }`}
+                  />
+                  {last?.error
+                    ? "Sync failed"
+                    : last
+                      ? `Synced ${formatDistanceToNow(new Date(last.started_at))} ago`
+                      : "Never synced"}
+                </span>
                 <Button
                   size="sm"
                   variant={on ? "secondary" : "outline"}
