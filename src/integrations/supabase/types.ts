@@ -193,6 +193,7 @@ export type Database = {
           items_upserted: number | null
           source: string
           started_at: string
+          status: string
           triggered_by: string
         }
         Insert: {
@@ -202,6 +203,7 @@ export type Database = {
           items_upserted?: number | null
           source: string
           started_at?: string
+          status?: string
           triggered_by?: string
         }
         Update: {
@@ -211,6 +213,7 @@ export type Database = {
           items_upserted?: number | null
           source?: string
           started_at?: string
+          status?: string
           triggered_by?: string
         }
         Relationships: []
