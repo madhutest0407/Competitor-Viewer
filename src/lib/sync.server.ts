@@ -335,7 +335,7 @@ export async function syncProductChangelog(
 
   const { data: run } = await supabaseAdmin
     .from("sync_runs")
-    .insert({ source: product.id, triggered_by: triggeredBy })
+    .insert({ source: product.id, triggered_by: triggeredBy, status: "pending" })
     .select("id")
     .single();
 
@@ -426,14 +426,14 @@ export async function syncProductChangelog(
 
     await supabaseAdmin
       .from("sync_runs")
-      .update({ finished_at: new Date().toISOString(), items_upserted: newItemsCount })
+      .update({ finished_at: new Date().toISOString(), items_upserted: newItemsCount, status: "success" })
       .eq("id", run!.id);
     return { ok: true, upserted: newItemsCount };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     await supabaseAdmin
       .from("sync_runs")
-      .update({ finished_at: new Date().toISOString(), error: msg })
+      .update({ finished_at: new Date().toISOString(), error: msg, status: "failed" })
       .eq("id", run!.id);
     return { ok: false, upserted: 0, error: msg };
   }
@@ -556,7 +556,7 @@ export async function syncProductRss(
 
   const { data: run, error: insertError } = await supabaseAdmin
     .from("sync_runs")
-    .insert({ source: product.id, triggered_by: triggeredBy })
+    .insert({ source: product.id, triggered_by: triggeredBy, status: "pending" })
     .select("id")
     .single();
 
@@ -653,7 +653,7 @@ export async function syncProductRss(
 
     await supabaseAdmin
       .from("sync_runs")
-      .update({ finished_at: new Date().toISOString(), items_upserted: newItemsCount })
+      .update({ finished_at: new Date().toISOString(), items_upserted: newItemsCount, status: "success" })
       .eq("id", run.id);
     return { ok: true, upserted: newItemsCount };
   } catch (err) {
@@ -661,7 +661,7 @@ export async function syncProductRss(
     if (run?.id) {
       await supabaseAdmin
         .from("sync_runs")
-        .update({ finished_at: new Date().toISOString(), error: msg })
+        .update({ finished_at: new Date().toISOString(), error: msg, status: "failed" })
         .eq("id", run.id);
     }
     return { ok: false, upserted: 0, error: msg };
@@ -692,7 +692,7 @@ export async function syncMicrosoft(triggeredBy: "cron" | "manual"): Promise<{
   }
   const { data: run, error: insertError } = await supabaseAdmin
     .from("sync_runs")
-    .insert({ source: "microsoft", triggered_by: triggeredBy })
+    .insert({ source: "microsoft", triggered_by: triggeredBy, status: "pending" })
     .select("id")
     .single();
 
@@ -795,7 +795,7 @@ export async function syncMicrosoft(triggeredBy: "cron" | "manual"): Promise<{
 
     await supabaseAdmin
       .from("sync_runs")
-      .update({ finished_at: new Date().toISOString(), items_upserted: newItemsCount })
+      .update({ finished_at: new Date().toISOString(), items_upserted: newItemsCount, status: "success" })
       .eq("id", run.id);
     return { ok: true, upserted: newItemsCount };
   } catch (err) {
@@ -803,7 +803,7 @@ export async function syncMicrosoft(triggeredBy: "cron" | "manual"): Promise<{
     if (run?.id) {
       await supabaseAdmin
         .from("sync_runs")
-        .update({ finished_at: new Date().toISOString(), error: msg })
+        .update({ finished_at: new Date().toISOString(), error: msg, status: "failed" })
         .eq("id", run.id);
     }
     return { ok: false, upserted: 0, error: msg };
@@ -821,7 +821,7 @@ export async function syncGoogle(triggeredBy: "cron" | "manual"): Promise<{
   }
   const { data: run, error: insertError } = await supabaseAdmin
     .from("sync_runs")
-    .insert({ source: "google", triggered_by: triggeredBy })
+    .insert({ source: "google", triggered_by: triggeredBy, status: "pending" })
     .select("id")
     .single();
 
@@ -992,7 +992,7 @@ export async function syncGoogle(triggeredBy: "cron" | "manual"): Promise<{
 
     await supabaseAdmin
       .from("sync_runs")
-      .update({ finished_at: new Date().toISOString(), items_upserted: newItemsCount })
+      .update({ finished_at: new Date().toISOString(), items_upserted: newItemsCount, status: "success" })
       .eq("id", run.id);
     return { ok: true, upserted: newItemsCount };
   } catch (err) {
@@ -1000,7 +1000,7 @@ export async function syncGoogle(triggeredBy: "cron" | "manual"): Promise<{
     if (run?.id) {
       await supabaseAdmin
         .from("sync_runs")
-        .update({ finished_at: new Date().toISOString(), error: msg })
+        .update({ finished_at: new Date().toISOString(), error: msg, status: "failed" })
         .eq("id", run.id);
     }
     return { ok: false, upserted: 0, error: msg };
