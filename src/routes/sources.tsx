@@ -166,11 +166,6 @@ function SourcesPage() {
                     </a>
                   )}
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  {last
-                    ? `Last sync ${formatDistanceToNow(new Date(last.started_at))} ago · ${last.items_upserted ?? 0} items${last.error ? ` · error: ${last.error}` : ""}`
-                    : "Never synced"}
-                </div>
               </div>
               <div className="flex items-center gap-2">
                 <span
