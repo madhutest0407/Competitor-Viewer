@@ -218,14 +218,6 @@ function SourcesPage() {
             </div>
           );
         })}
-        <div className="rounded-md border border-border/50 bg-card p-4 opacity-50">
-          <div className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Recent runs
-          </div>
-          <div className="py-6 text-center text-sm text-muted-foreground">
-            Sync history temporarily unavailable. Your syncs are still running and data is being collected.
-          </div>
-        </div>
       </div>
     </div>
   );
