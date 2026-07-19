@@ -189,7 +189,7 @@ function SourcesPage() {
                   {last?.error
                     ? "Sync failed"
                     : last
-                      ? `Synced ${formatDistanceToNow(new Date(last.started_at))} ago`
+                      ? `Synced ${formatDistanceToNow(new Date(last.started_at))} ago · ${last.items_upserted ?? 0} items`
                       : "Never synced"}
                 </span>
                 <Button
