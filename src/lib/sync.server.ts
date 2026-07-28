@@ -36,6 +36,58 @@ function parseMonthYear(s: string | null | undefined): string | null {
   return null;
 }
 
+/**
+ * Fallback date resolution: scan the raw HTML for date markers (datetime
+ * attributes, itemprop="datePublished", visible "July 24, 2026" strings) and
+ * map each one to the nearby text so an extracted entry title can be matched
+ * back to its publish date when the model returns null.
+ */
+function buildDateWindows(html: string): Array<{ date: string; text: string }> {
+  const windows: Array<{ date: string; text: string }> = [];
+  const patterns = [
+    /datetime=["']([^"']+)["']/gi,
+    /itemprop=["']datePublished["'][^>]*content=["']([^"']+)["']/gi,
+    />\s*((?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s*\d{4})\s*</gi,
+  ];
+  for (const re of patterns) {
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(html)) !== null) {
+      const date = parseLooseDate(m[1]);
+      if (!date) continue;
+      const from = Math.max(0, m.index - 4000);
+      const to = Math.min(html.length, m.index + 4000);
+      windows.push({ date, text: stripHtml(html.slice(from, to)).toLowerCase() });
+    }
+  }
+  return windows;
+}
+
+function normalizeTitle(t: string): string {
+  return t
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function resolveDateForTitle(
+  title: string,
+  windows: Array<{ date: string; text: string }>,
+): string | null {
+  const norm = normalizeTitle(title);
+  if (norm.length < 4) return null;
+  const words = norm.split(" ").filter((w) => w.length > 2);
+  if (words.length === 0) return null;
+  let best: { date: string; score: number } | null = null;
+  for (const w of windows) {
+    const flat = normalizeTitle(w.text);
+    if (flat.includes(norm)) return w.date;
+    const score = words.filter((word) => flat.includes(word)).length / words.length;
+    if (score >= 0.8 && (!best || score > best.score)) best = { date: w.date, score };
+  }
+  return best?.date ?? null;
+}
+
 function stripHtml(html: string): string {
   return html
     .replace(/<style[\s\S]*?<\/style>/gi, "")
@@ -235,29 +287,63 @@ type ChangelogEntry = {
   kind: string;
 };
 
-async function aiExtractChangelog(
+/**
+ * Some changelogs (Superhuman) only carry the publish date in a `datetime`
+ * attribute or in JSON embedded in the markup, so plain tag-stripping loses it.
+ * Surface those dates as visible text before stripping.
+ */
+function stripHtmlKeepDates(html: string): string {
+  const withDates = html.replace(
+    /<([a-z0-9]+)([^>]*?)\sdatetime=["']([^"']+)["']([^>]*)>/gi,
+    (_m, tag, a, dt, b) => `<${tag}${a}${b}> ${dt} `,
+  );
+  return stripHtml(withDates);
+}
+
+/** Accepts "2026-07-24", "July 24, 2026", "24 Jul 2026", "2026/07/24". */
+function parseLooseDate(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const s = raw.trim();
+  const iso = s.match(/(\d{4})[-/](\d{2})[-/](\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const parsed = new Date(s);
+  if (!Number.isNaN(parsed.getTime())) {
+    const y = parsed.getUTCFullYear();
+    if (y > 2000 && y < 2100) return parsed.toISOString().slice(0, 10);
+  }
+  return null;
+}
+
+async function aiExtractChangelogOnce(
   productName: string,
   pageUrl: string,
   pageText: string,
+  relaxed: boolean,
 ): Promise<ChangelogEntry[]> {
   const key = process.env.LOVABLE_API_KEY;
   if (!key) return [];
-  const prompt = `You are extracting release notes from the ${productName} changelog page (${pageUrl}).
-
-Return ONLY a JSON array (no prose, no markdown fences). Each entry has:
-- title: short, imperative (e.g. "Add webhook retry policy")
-- description: 1-2 sentence summary of the change
-- date: ISO date "YYYY-MM-DD" or null if unknown
-- href: absolute URL to the entry if present, else null
-- kind: one of "feature" | "api" | "enhancement" | "fix"
-
-STRICT rules:
+  const strictRules = `STRICT rules:
 - Include ONLY product release notes: new features, API additions/changes, enhancements, bug fixes.
 - REJECT and skip: marketing posts, webinars, case studies, customer stories,
   hiring/company/partnership news, pricing or plan announcements, generic
   "best practices" or "guide" blog articles, event/conference recaps.
 - Skip entries whose title or description cannot be identified.
-- Max 40 entries. If page contains no release notes, return [].
+- Max 40 entries. If page contains no release notes, return [].`;
+  const relaxedRules = `Rules:
+- Extract EVERY product update entry listed on the page, in page order.
+- Skip only obvious navigation, footer, pricing and careers content.
+- Max 40 entries.`;
+  const prompt = `You are extracting release notes from the ${productName} changelog page (${pageUrl}).
+
+Return ONLY a JSON array (no prose, no markdown fences). Each entry has:
+- title: short, imperative (e.g. "Add webhook retry policy")
+- description: 1-2 sentence summary of the change
+- date: ISO date "YYYY-MM-DD". Convert any date shown near the entry
+  (e.g. "July 24, 2026") to ISO. Use null ONLY when no date appears at all.
+- href: absolute URL to the entry if present, else null
+- kind: one of "feature" | "api" | "enhancement" | "fix"
+
+${relaxed ? relaxedRules : strictRules}
 
 Page content:
 ${pageText.slice(0, 40000)}`;
@@ -294,8 +380,7 @@ ${pageText.slice(0, 40000)}`;
         const title = typeof o.title === "string" ? o.title.trim() : "";
         if (!title) return null;
         const description = typeof o.description === "string" ? o.description.trim() : "";
-        const rawDate = typeof o.date === "string" ? o.date.trim() : "";
-        const date = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : null;
+        const date = parseLooseDate(typeof o.date === "string" ? o.date : null);
         const href = typeof o.href === "string" ? safeHttpUrl(o.href) : null;
         const kind = typeof o.kind === "string" ? o.kind.toLowerCase() : "feature";
         return { title, description, date, href, kind };
@@ -306,6 +391,21 @@ ${pageText.slice(0, 40000)}`;
     console.warn(`aiExtractChangelog ${productName} failed`, err);
     return [];
   }
+}
+
+/**
+ * Extract entries with the strict release-notes prompt; if the model rejects
+ * the whole page (some vendors write updates in a narrative voice), retry once
+ * with a relaxed prompt so real releases are not silently dropped.
+ */
+async function aiExtractChangelog(
+  productName: string,
+  pageUrl: string,
+  pageText: string,
+): Promise<ChangelogEntry[]> {
+  const strict = await aiExtractChangelogOnce(productName, pageUrl, pageText, false);
+  if (strict.length > 0) return strict;
+  return aiExtractChangelogOnce(productName, pageUrl, pageText, true);
 }
 
 // Rough marketing filter as a belt-and-braces pass after the AI extraction,
@@ -351,7 +451,7 @@ export async function syncProductChangelog(
     });
     if (!res.ok) throw new Error(`Changelog ${pageUrl} ${res.status}`);
     const html = await res.text();
-    const text = stripHtml(html);
+    const text = stripHtmlKeepDates(html);
     if (text.length < 500) {
       throw new Error(
         `Changelog page rendered too little text (${text.length} chars) — likely JS-only. Consider a different URL.`,
@@ -359,8 +459,10 @@ export async function syncProductChangelog(
     }
 
     const extracted = await aiExtractChangelog(product.name, pageUrl, text);
+    const dateWindows = buildDateWindows(html);
     const items = extracted
       .filter((e) => !looksLikeMarketing(e.title, e.description))
+      .map((e) => (e.date ? e : { ...e, date: resolveDateForTitle(e.title, dateWindows) }))
       .slice(0, 60);
 
     const { data: existingRows } = await supabaseAdmin
@@ -369,9 +471,9 @@ export async function syncProductChangelog(
       .eq("source", product.id);
     const existingMap = new Map((existingRows ?? []).map((r) => [r.source_id, r.category]));
 
-    // Stable id from title+date so re-runs upsert instead of duplicating.
-    const makeId = (e: ChangelogEntry) =>
-      `${(e.date ?? "").slice(0, 10)}::${e.title.toLowerCase().replace(/\s+/g, " ").slice(0, 120)}`;
+    // Stable id from the title alone, so a later run that resolves a missing
+    // date updates the existing row instead of creating a duplicate.
+    const makeId = (e: ChangelogEntry) => normalizeTitle(e.title).slice(0, 120);
 
     const rows = items.map((e) => {
       const id = makeId(e);

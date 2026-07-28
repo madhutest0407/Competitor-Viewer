@@ -1,0 +1,1 @@
+DELETE FROM public.releases WHERE source IN ('proton','superhuman','notion') AND source_id LIKE '%::%';
