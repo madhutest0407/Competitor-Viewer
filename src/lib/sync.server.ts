@@ -459,8 +459,10 @@ export async function syncProductChangelog(
     }
 
     const extracted = await aiExtractChangelog(product.name, pageUrl, text);
+    const dateWindows = buildDateWindows(html);
     const items = extracted
       .filter((e) => !looksLikeMarketing(e.title, e.description))
+      .map((e) => (e.date ? e : { ...e, date: resolveDateForTitle(e.title, dateWindows) }))
       .slice(0, 60);
 
     const { data: existingRows } = await supabaseAdmin
@@ -469,9 +471,9 @@ export async function syncProductChangelog(
       .eq("source", product.id);
     const existingMap = new Map((existingRows ?? []).map((r) => [r.source_id, r.category]));
 
-    // Stable id from title+date so re-runs upsert instead of duplicating.
-    const makeId = (e: ChangelogEntry) =>
-      `${(e.date ?? "").slice(0, 10)}::${e.title.toLowerCase().replace(/\s+/g, " ").slice(0, 120)}`;
+    // Stable id from the title alone, so a later run that resolves a missing
+    // date updates the existing row instead of creating a duplicate.
+    const makeId = (e: ChangelogEntry) => normalizeTitle(e.title).slice(0, 120);
 
     const rows = items.map((e) => {
       const id = makeId(e);
