@@ -399,7 +399,7 @@ export async function syncProductChangelog(
     });
     if (!res.ok) throw new Error(`Changelog ${pageUrl} ${res.status}`);
     const html = await res.text();
-    const text = stripHtml(html);
+    const text = stripHtmlKeepDates(html);
     if (text.length < 500) {
       throw new Error(
         `Changelog page rendered too little text (${text.length} chars) — likely JS-only. Consider a different URL.`,
