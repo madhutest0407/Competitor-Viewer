@@ -36,6 +36,58 @@ function parseMonthYear(s: string | null | undefined): string | null {
   return null;
 }
 
+/**
+ * Fallback date resolution: scan the raw HTML for date markers (datetime
+ * attributes, itemprop="datePublished", visible "July 24, 2026" strings) and
+ * map each one to the nearby text so an extracted entry title can be matched
+ * back to its publish date when the model returns null.
+ */
+function buildDateWindows(html: string): Array<{ date: string; text: string }> {
+  const windows: Array<{ date: string; text: string }> = [];
+  const patterns = [
+    /datetime=["']([^"']+)["']/gi,
+    /itemprop=["']datePublished["'][^>]*content=["']([^"']+)["']/gi,
+    />\s*((?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s*\d{4})\s*</gi,
+  ];
+  for (const re of patterns) {
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(html)) !== null) {
+      const date = parseLooseDate(m[1]);
+      if (!date) continue;
+      const from = Math.max(0, m.index - 4000);
+      const to = Math.min(html.length, m.index + 4000);
+      windows.push({ date, text: stripHtml(html.slice(from, to)).toLowerCase() });
+    }
+  }
+  return windows;
+}
+
+function normalizeTitle(t: string): string {
+  return t
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function resolveDateForTitle(
+  title: string,
+  windows: Array<{ date: string; text: string }>,
+): string | null {
+  const norm = normalizeTitle(title);
+  if (norm.length < 4) return null;
+  const words = norm.split(" ").filter((w) => w.length > 2);
+  if (words.length === 0) return null;
+  let best: { date: string; score: number } | null = null;
+  for (const w of windows) {
+    const flat = normalizeTitle(w.text);
+    if (flat.includes(norm)) return w.date;
+    const score = words.filter((word) => flat.includes(word)).length / words.length;
+    if (score >= 0.8 && (!best || score > best.score)) best = { date: w.date, score };
+  }
+  return best?.date ?? null;
+}
+
 function stripHtml(html: string): string {
   return html
     .replace(/<style[\s\S]*?<\/style>/gi, "")
