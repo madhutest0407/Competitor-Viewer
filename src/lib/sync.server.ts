@@ -235,29 +235,63 @@ type ChangelogEntry = {
   kind: string;
 };
 
-async function aiExtractChangelog(
+/**
+ * Some changelogs (Superhuman) only carry the publish date in a `datetime`
+ * attribute or in JSON embedded in the markup, so plain tag-stripping loses it.
+ * Surface those dates as visible text before stripping.
+ */
+function stripHtmlKeepDates(html: string): string {
+  const withDates = html.replace(
+    /<([a-z0-9]+)([^>]*?)\sdatetime=["']([^"']+)["']([^>]*)>/gi,
+    (_m, tag, a, dt, b) => `<${tag}${a}${b}> ${dt} `,
+  );
+  return stripHtml(withDates);
+}
+
+/** Accepts "2026-07-24", "July 24, 2026", "24 Jul 2026", "2026/07/24". */
+function parseLooseDate(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const s = raw.trim();
+  const iso = s.match(/(\d{4})[-/](\d{2})[-/](\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const parsed = new Date(s);
+  if (!Number.isNaN(parsed.getTime())) {
+    const y = parsed.getUTCFullYear();
+    if (y > 2000 && y < 2100) return parsed.toISOString().slice(0, 10);
+  }
+  return null;
+}
+
+async function aiExtractChangelogOnce(
   productName: string,
   pageUrl: string,
   pageText: string,
+  relaxed: boolean,
 ): Promise<ChangelogEntry[]> {
   const key = process.env.LOVABLE_API_KEY;
   if (!key) return [];
-  const prompt = `You are extracting release notes from the ${productName} changelog page (${pageUrl}).
-
-Return ONLY a JSON array (no prose, no markdown fences). Each entry has:
-- title: short, imperative (e.g. "Add webhook retry policy")
-- description: 1-2 sentence summary of the change
-- date: ISO date "YYYY-MM-DD" or null if unknown
-- href: absolute URL to the entry if present, else null
-- kind: one of "feature" | "api" | "enhancement" | "fix"
-
-STRICT rules:
+  const strictRules = `STRICT rules:
 - Include ONLY product release notes: new features, API additions/changes, enhancements, bug fixes.
 - REJECT and skip: marketing posts, webinars, case studies, customer stories,
   hiring/company/partnership news, pricing or plan announcements, generic
   "best practices" or "guide" blog articles, event/conference recaps.
 - Skip entries whose title or description cannot be identified.
-- Max 40 entries. If page contains no release notes, return [].
+- Max 40 entries. If page contains no release notes, return [].`;
+  const relaxedRules = `Rules:
+- Extract EVERY product update entry listed on the page, in page order.
+- Skip only obvious navigation, footer, pricing and careers content.
+- Max 40 entries.`;
+  const prompt = `You are extracting release notes from the ${productName} changelog page (${pageUrl}).
+
+Return ONLY a JSON array (no prose, no markdown fences). Each entry has:
+- title: short, imperative (e.g. "Add webhook retry policy")
+- description: 1-2 sentence summary of the change
+- date: ISO date "YYYY-MM-DD". Convert any date shown near the entry
+  (e.g. "July 24, 2026") to ISO. Use null ONLY when no date appears at all.
+- href: absolute URL to the entry if present, else null
+- kind: one of "feature" | "api" | "enhancement" | "fix"
+
+${relaxed ? relaxedRules : strictRules}
 
 Page content:
 ${pageText.slice(0, 40000)}`;
@@ -294,8 +328,7 @@ ${pageText.slice(0, 40000)}`;
         const title = typeof o.title === "string" ? o.title.trim() : "";
         if (!title) return null;
         const description = typeof o.description === "string" ? o.description.trim() : "";
-        const rawDate = typeof o.date === "string" ? o.date.trim() : "";
-        const date = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : null;
+        const date = parseLooseDate(typeof o.date === "string" ? o.date : null);
         const href = typeof o.href === "string" ? safeHttpUrl(o.href) : null;
         const kind = typeof o.kind === "string" ? o.kind.toLowerCase() : "feature";
         return { title, description, date, href, kind };
@@ -306,6 +339,21 @@ ${pageText.slice(0, 40000)}`;
     console.warn(`aiExtractChangelog ${productName} failed`, err);
     return [];
   }
+}
+
+/**
+ * Extract entries with the strict release-notes prompt; if the model rejects
+ * the whole page (some vendors write updates in a narrative voice), retry once
+ * with a relaxed prompt so real releases are not silently dropped.
+ */
+async function aiExtractChangelog(
+  productName: string,
+  pageUrl: string,
+  pageText: string,
+): Promise<ChangelogEntry[]> {
+  const strict = await aiExtractChangelogOnce(productName, pageUrl, pageText, false);
+  if (strict.length > 0) return strict;
+  return aiExtractChangelogOnce(productName, pageUrl, pageText, true);
 }
 
 // Rough marketing filter as a belt-and-braces pass after the AI extraction,
